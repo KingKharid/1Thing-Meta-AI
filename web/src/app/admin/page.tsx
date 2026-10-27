@@ -89,53 +89,136 @@ async function getPlanes(): Promise<Plane[]> {
   }
 }
 
+function splitTitle(title: string, index: number) {
+  const parts = title.split(" // ");
+  return parts.length > 1
+    ? { code: parts[0], name: parts.slice(1).join(" // ") }
+    : { code: String(index + 1).padStart(2, "0"), name: title };
+}
+
 export default async function AdminPage() {
   const planes = await getPlanes();
+  const nominal = planes.filter((plane) => plane.ok).length;
+  const attention = planes.length - nominal;
+  const signals = planes.reduce((total, plane) => total + plane.rows.length, 0);
 
   return (
-    <div className="shell">
+    <div className="shell grid-overlay">
       <header className="topbar">
-        <div className="wordmark">1Thing // Control Room</div>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="wordmark">1Thing</span>
+          <span className="brand-rule" aria-hidden="true" />
+          <span className="brand-sub mono">CONTROL ROOM</span>
+        </div>
         <div className="topbar-status mono">
-          <span>TELEMETRY // LIVE</span>
-          <span>PLANES // 6</span>
+          <span className="status-chip is-live">
+            <i className="status-dot" aria-hidden="true" />
+            TELEMETRY // LIVE
+          </span>
+          <span className="status-chip">
+            <i className="status-dot status-dot-steady" aria-hidden="true" />
+            PLANES // {planes.length}
+          </span>
         </div>
       </header>
 
       <main className="admin-wrap">
-        <h1 className="admin-title">Operational Control Room</h1>
-        <div className="admin-sub mono">
-          SIX-PLANE DENSE TELEMETRY // FLAT CARBON PANELS // 1PX HAIRLINES
+        <div className="focus-kicker mono">
+          <span className="kicker-left">
+            <span className="kicker-mark" aria-hidden="true" />
+            CONTROL ROOM // READ-ONLY
+          </span>
+          <span className="kicker-right">SURFACE // TELEMETRY</span>
+        </div>
+
+        <div className="admin-head">
+          <div>
+            <h1 className="admin-title">Operational Control Room</h1>
+            <p className="admin-sub mono">
+              SIX-PLANE DENSE TELEMETRY // FLAT CARBON PANELS // 1PX HAIRLINES
+            </p>
+          </div>
+          <div className="admin-legend mono">
+            <span>
+              <i className="square square-ok" aria-hidden="true" />
+              NOMINAL
+            </span>
+            <span>
+              <i className="square square-warn" aria-hidden="true" />
+              ATTENTION
+            </span>
+          </div>
+        </div>
+
+        <div className="summary-rail">
+          <div className="summary-cell">
+            <span className="summary-key mono">PLANES</span>
+            <span className="summary-val mono">{planes.length}</span>
+          </div>
+          <div className="summary-cell">
+            <span className="summary-key mono">NOMINAL</span>
+            <span className="summary-val mono val-emerald">{nominal}</span>
+          </div>
+          <div className="summary-cell">
+            <span className="summary-key mono">ATTENTION</span>
+            <span className={`summary-val mono ${attention > 0 ? "val-amber" : ""}`}>
+              {attention}
+            </span>
+          </div>
+          <div className="summary-cell">
+            <span className="summary-key mono">SIGNALS</span>
+            <span className="summary-val mono">{signals}</span>
+          </div>
         </div>
 
         <div className="admin-grid">
-          {planes.map((plane) => (
-            <section key={plane.id} className="plane" aria-label={plane.title}>
-              <div className="plane-head">
-                <span className="plane-title mono">{plane.title}</span>
-                <span
-                  className={`square ${plane.ok ? "square-ok" : "square-warn"}`}
-                  aria-label={plane.ok ? "nominal" : "attention"}
-                />
-              </div>
-              {plane.rows.map((row) => (
-                <div key={row.key} className="kv">
-                  <span className="kv-key">{row.key}</span>
-                  <span
-                    className={`kv-val ${row.tone === "amber" ? "val-amber" : ""} ${row.tone === "emerald" ? "val-emerald" : ""}`}
-                  >
-                    {row.value}
+          {planes.map((plane, index) => {
+            const { code, name } = splitTitle(plane.title, index);
+            return (
+              <section
+                key={plane.id}
+                className="plane"
+                aria-label={plane.title}
+                style={{ animationDelay: `${index * 45}ms` }}
+              >
+                <div className="plane-head">
+                  <div className="plane-heading">
+                    <span className="plane-index mono">{code}</span>
+                    <span className="plane-title mono">{name}</span>
+                  </div>
+                  <span className={`plane-state mono ${plane.ok ? "is-ok" : "is-warn"}`}>
+                    <i
+                      className={`square ${plane.ok ? "square-ok" : "square-warn"}`}
+                      aria-hidden="true"
+                    />
+                    {plane.ok ? "NOMINAL" : "ATTENTION"}
                   </span>
                 </div>
-              ))}
-            </section>
-          ))}
+                <div className="plane-rows">
+                  {plane.rows.map((row) => (
+                    <div key={row.key} className="kv">
+                      <span className="kv-key">{row.key}</span>
+                      <span
+                        className={`kv-val ${row.tone === "amber" ? "val-amber" : ""} ${row.tone === "emerald" ? "val-emerald" : ""}`}
+                      >
+                        {row.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </main>
 
       <footer className="footbar mono">
-        <span>CONTROL ROOM // READ-ONLY</span>
-        <span>MUTATIONS REQUIRE PHASE-4 KEYS</span>
+        <span className="footbar-item">
+          <i className="foot-dot" aria-hidden="true" />
+          CONTROL ROOM // READ-ONLY
+        </span>
+        <span className="footbar-item">MUTATIONS REQUIRE PHASE-4 KEYS</span>
       </footer>
     </div>
   );
