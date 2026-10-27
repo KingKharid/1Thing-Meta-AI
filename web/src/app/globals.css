@@ -1,0 +1,276 @@
+/* Warm Industrial Minimalism — 1Thing design tokens.
+   Flat surfaces, 1px hairlines, zero radius, zero shadow. */
+
+:root {
+  --erebus: #0c0d0e;
+  --carbon: #16181a;
+  --bone: #f9f8f6;
+  --amber: #f59e0b;
+  --emerald: #10b981;
+  --hairline: rgba(249, 248, 246, 0.08);
+  --grid-line: rgba(255, 255, 255, 0.02);
+  --font-sans: "Geist", "SF Pro", -apple-system, "Segoe UI", Inter, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--erebus);
+  color: var(--bone);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-overlay {
+  background-image:
+    repeating-linear-gradient(to right, var(--grid-line) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(to bottom, var(--grid-line) 0 1px, transparent 1px 32px);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.wordmark {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
+.topbar-status {
+  color: var(--bone);
+  opacity: 0.7;
+  display: flex;
+  gap: 24px;
+}
+
+.focus-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.focus-column {
+  width: 100%;
+  max-width: 640px;
+}
+
+.focus-kicker {
+  color: var(--bone);
+  opacity: 0.55;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.focus-card {
+  background: var(--carbon);
+  border: 1px solid var(--hairline);
+  padding: 32px;
+}
+
+.focus-title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.focus-step {
+  color: var(--amber);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.focus-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--hairline);
+  padding: 6px 12px;
+  color: var(--bone);
+}
+
+.pill-amber {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.reserve-line {
+  color: var(--bone);
+  opacity: 0.55;
+  margin-bottom: 24px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.btn {
+  appearance: none;
+  background: transparent;
+  color: var(--bone);
+  border: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 14px 0;
+  cursor: pointer;
+}
+
+.btn:active {
+  transition: none;
+}
+
+.btn-done:active {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: var(--erebus);
+}
+
+.btn-skip:active,
+.btn-chunk:active {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.footbar {
+  border-top: 1px solid var(--hairline);
+  padding: 16px 32px;
+  color: var(--bone);
+  opacity: 0.45;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Admin control room */
+
+.admin-wrap {
+  flex: 1;
+  padding: 32px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.admin-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.admin-sub {
+  color: var(--bone);
+  opacity: 0.55;
+  margin-bottom: 28px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.plane {
+  background: var(--carbon);
+  border: 1px solid var(--hairline);
+  padding: 24px;
+}
+
+.plane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.plane-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.square {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+}
+
+.square-ok {
+  background: var(--emerald);
+}
+
+.square-warn {
+  background: var(--amber);
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.kv-key {
+  opacity: 0.55;
+}
+
+.kv-val {
+  text-align: right;
+}
+
+.val-amber {
+  color: var(--amber);
+}
+
+.val-emerald {
+  color: var(--emerald);
+}

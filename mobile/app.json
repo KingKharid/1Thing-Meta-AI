@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "1Thing",
+    "slug": "onething-focus",
+    "version": "1.0.0",
+    "scheme": "onething",
+    "orientation": "portrait",
+    "backgroundColor": "#0C0D0E"
+  }
+}
