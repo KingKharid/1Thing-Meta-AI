@@ -5,6 +5,9 @@
     "version": "1.0.0",
     "scheme": "onething",
     "orientation": "portrait",
-    "backgroundColor": "#0C0D0E"
+    "backgroundColor": "#0C0D0E",
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }

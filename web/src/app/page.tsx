@@ -1,34 +1,19 @@
+import CaptureBay from "./capture-bay";
+import DeriveStep from "./derive-step";
 import FocusActions from "./focus-actions";
 import { apiConfig, getFocus } from "./focus-lib";
 
-const METER_MAX = 8;
-
-function ReserveRow({ count }: { count: number }) {
+function ReserveLine({ count }: { count: number }) {
+  const clear = count === 0;
   return (
-    <div className="reserve-row">
-      <div className="reserve-info">
-        <span className="reserve-label mono">RESERVE</span>
-        <span className="reserve-value mono">
-          {count} {count === 1 ? "ITEM" : "ITEMS"} IN STASIS
-          <span className="reserve-hint"> · HIDDEN</span>
-        </span>
-      </div>
-      <span className="meter" aria-hidden="true">
-        {count === 0 ? (
-          <span className="mono meter-clear">
-            <i />
-            CLEAR
-          </span>
-        ) : (
-          <>
-            {Array.from({ length: Math.min(count, METER_MAX) }).map((_, i) => (
-              <i key={i} style={{ animationDelay: `${i * 45}ms` }} />
-            ))}
-            {count > METER_MAX && (
-              <span className="mono meter-more">+{count - METER_MAX}</span>
-            )}
-          </>
-        )}
+    <div
+      className={`reserve-line${clear ? " is-clear" : ""}`}
+      aria-label={clear ? "Reserve clear" : `${count} items hidden in reserve`}
+    >
+      <span className="reserve-glyph" aria-hidden="true" />
+      <span className="reserve-count mono">{count}</span>
+      <span className="reserve-text mono">
+        {clear ? "RESERVE CLEAR" : "IN RESERVE · HIDDEN"}
       </span>
     </div>
   );
@@ -45,135 +30,158 @@ function ClockIcon() {
 
 export default async function FocusPage() {
   const focus = await getFocus();
-  const { base, phone } = apiConfig();
+  const { base, phone, whatsapp } = apiConfig();
   const task = focus.task;
-  const syncedAt = new Date().toISOString().slice(11, 19);
-  const focusLabel =
-    task === null
-      ? "STANDBY — NO ACTIVE FOCUS"
-      : task.id < 0
-        ? "ACTIVE FOCUS"
-        : `ACTIVE FOCUS — #${String(task.id).padStart(3, "0")}`;
+  const stamp = new Date(focus.updatedAt).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const statusLabel =
+    focus.mode === "live" ? "LIVE" : focus.mode === "preview" ? "PREVIEW" : "OFFLINE";
+  const serial =
+    task && task.id > 0 ? `#${String(task.id).padStart(3, "0")}` : null;
 
   return (
     <div className="shell grid-overlay">
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="wordmark">1Thing</span>
+          <a className="wordmark" href="/">
+            1Thing
+          </a>
           <span className="brand-rule" aria-hidden="true" />
           <span className="brand-sub mono">ONE PHYSICAL NEXT STEP</span>
         </div>
         <div className="topbar-status mono">
           <span className={`status-chip ${focus.live ? "is-live" : "is-offline"}`}>
             <i className="status-dot" aria-hidden="true" />
-            ENGINE // {focus.live ? "LIVE" : "OFFLINE PREVIEW"}
-          </span>
-          <span className="status-chip">
-            <i className="status-dot status-dot-steady" aria-hidden="true" />
-            INVARIANTS // 7 ARMED
+            ENGINE // {statusLabel}
           </span>
         </div>
       </header>
 
       <main className="focus-wrap">
         <div className="focus-column">
-          <div className="focus-kicker mono">
-            <span className="kicker-left">
-              <span className="kicker-mark" aria-hidden="true" />
-              {focusLabel}
-            </span>
-            <span className="kicker-right">SURFACE // WEB SANCTUARY</span>
-          </div>
-
-          {task === null ? (
+          {focus.mode === "error" ? (
+            <section className="focus-card focus-card-error" aria-label="Engine unreachable">
+              <div className="focus-head">
+                <span className="focus-task mono">ENGINE UNREACHABLE</span>
+              </div>
+              <h1 className="focus-title">CAN&apos;T REACH THE ENGINE</h1>
+              <p className="focus-sub">
+                Nothing was lost. The focus API didn&apos;t answer — check the
+                backend, then retry.
+              </p>
+              <a className="ingest-cta mono" href="/">
+                RETRY <span aria-hidden="true">→</span>
+              </a>
+              <div className="card-foot mono">
+                <span className="foot-item">CHECKED {stamp}</span>
+                <span className="foot-item">SOURCE OFFLINE</span>
+              </div>
+            </section>
+          ) : task === null ? (
             <section className="focus-card focus-card-idle" aria-label="No active task">
+              <div className="focus-head">
+                <span className="focus-task mono">STANDBY</span>
+              </div>
               <h1 className="focus-title">NOTHING IN FOCUS</h1>
               <p className="focus-sub">
-                The surface is clear. Dump anything — voice, snap, or text — and
-                the system returns one physical next step.
+                The surface is clear. One thought in, one physical step out.
               </p>
 
-              <div className="ingest-bay" aria-label="Awaiting input">
-                <span className="ingest-target" aria-hidden="true">
-                  <span className="ingest-target-ring" />
-                  <span className="ingest-target-pip" />
-                </span>
-                <div className="ingest-copy">
-                  <span className="ingest-title mono">AWAITING INPUT</span>
-                  <span className="ingest-line">ANY FORMAT IN · ONE PHYSICAL STEP OUT</span>
-                </div>
-                <div className="ingest-channels">
-                  <span className="channel-chip mono">WHATSAPP</span>
-                  <span className="channel-chip mono">WEB</span>
-                  <span className="channel-chip mono">WATCH</span>
-                </div>
-              </div>
+              {whatsapp && (
+                <a className="ingest-cta mono" href={`https://wa.me/${whatsapp}`}>
+                  DUMP VIA WHATSAPP <span aria-hidden="true">→</span>
+                </a>
+              )}
 
-              <ReserveRow count={focus.reserveCount} />
-
-              <div className="hint-block">
-                <div className="kv">
-                  <span className="kv-key">
-                    <i className="kv-dot" aria-hidden="true" />
-                    INGEST
-                  </span>
-                  <span className="kv-val">VOICE / SNAP / TEXT READY</span>
-                </div>
-                <div className="kv">
-                  <span className="kv-key">
-                    <i className="kv-dot" aria-hidden="true" />
-                    CHANNELS
-                  </span>
-                  <span className="kv-val">WHATSAPP / WEB / WATCH</span>
-                </div>
-                <div className="kv">
-                  <span className="kv-key">
-                    <i className="kv-dot" aria-hidden="true" />
-                    INVARIANT
-                  </span>
-                  <span className="kv-val">SINGLE-ACTIVE ARMED</span>
-                </div>
-              </div>
+              <ReserveLine count={focus.reserveCount} />
 
               <div className="card-foot mono">
+                <span className="foot-item">CHECKED {stamp}</span>
                 <span className="foot-item">
-                  <i className="foot-dot" aria-hidden="true" />
-                  SYNC // {syncedAt} UTC
+                  SOURCE {focus.live ? "API" : "PREVIEW"}
                 </span>
-                <span className="foot-item">SOURCE // {focus.live ? "API" : "OFFLINE"}</span>
               </div>
             </section>
           ) : (
             <section className="focus-card" aria-label="Current task">
-              <h1 className="focus-title">{task.title}</h1>
-              <div className="step-strip">
-                <span className="step-label mono">NEXT PHYSICAL STEP</span>
-                <div className="step-body">
-                  <span className="livepip" aria-hidden="true" />
-                  <span className="step-text mono">{task.firstMicroStep}</span>
-                </div>
+              <div className="focus-head">
+                <span className="focus-task mono" title={task.title}>
+                  {task.title}
+                </span>
+                {serial && <span className="focus-serial mono">{serial}</span>}
               </div>
+
+              <div
+                className={`focus-step-label mono${
+                  task.firstMicroStep ? "" : " is-missing"
+                }`}
+              >
+                {task.firstMicroStep && (
+                  <span className="step-tick" aria-hidden="true" />
+                )}
+                {task.firstMicroStep ? "NEXT STEP" : "STEP MISSING"}
+              </div>
+
+              {task.firstMicroStep ? (
+                <h1
+                  className={
+                    task.firstMicroStep.length > 48
+                      ? "focus-step is-long"
+                      : "focus-step"
+                  }
+                >
+                  {task.firstMicroStep}
+                </h1>
+              ) : (
+                <>
+                  <h1 className="focus-step is-pending">NO STEP YET</h1>
+                  <p className="focus-pending">
+                    The engine didn&apos;t return a first move for this. The
+                    dump is safe — ask again.
+                  </p>
+                  <DeriveStep
+                    taskId={task.id}
+                    apiUrl={base}
+                    phone={phone}
+                    live={focus.live}
+                  />
+                </>
+              )}
+
               <div className="focus-meta">
-                <span className="pill pill-amber">
+                <span className="pill">
                   <ClockIcon />
                   {task.estimatedMinutes} MIN
                 </span>
-                <span className="pill">
-                  <span className="pill-dot" aria-hidden="true" />
-                  ONE STEP ONLY
-                </span>
               </div>
-              <ReserveRow count={focus.reserveCount} />
-              <FocusActions taskId={task.id} apiUrl={base} phone={phone} live={focus.live} />
+
+              <FocusActions
+                taskId={task.id}
+                apiUrl={apiConfig().base}
+                phone={apiConfig().phone}
+                live={focus.live}
+              />
+
+              <ReserveLine count={focus.reserveCount} />
+
               <div className="card-foot mono">
+                <span className="foot-item">CHECKED {stamp}</span>
                 <span className="foot-item">
-                  <i className="foot-dot" aria-hidden="true" />
-                  SYNC // {syncedAt} UTC
+                  SOURCE {focus.mode === "preview" ? "PREVIEW" : "API"}
                 </span>
-                <span className="foot-item">SOURCE // {focus.live ? "API" : "OFFLINE"}</span>
               </div>
             </section>
+          )}
+
+          {/* One bay instance outside the branch: filing into an empty
+              surface flips the card, and the confirmation must survive
+              that swap. */}
+          {focus.mode !== "error" && (
+            <CaptureBay apiUrl={base} phone={phone} live={focus.live} />
           )}
         </div>
       </main>
@@ -181,9 +189,11 @@ export default async function FocusPage() {
       <footer className="footbar mono">
         <span className="footbar-item">
           <i className="foot-dot" aria-hidden="true" />
-          SINGLE-ACTIVE INVARIANT ARMED
+          NEVER SHOW THE MOUNTAIN
         </span>
-        <span className="footbar-item">NEVER SHOW THE MOUNTAIN</span>
+        <a className="footbar-link mono" href="/admin">
+          CONTROL ROOM <span aria-hidden="true">→</span>
+        </a>
       </footer>
     </div>
   );

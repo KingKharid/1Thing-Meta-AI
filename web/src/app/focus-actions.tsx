@@ -26,14 +26,6 @@ function IconSkip() {
   );
 }
 
-function IconBreak() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M3 4h10M3 8h7M3 12h4" />
-    </svg>
-  );
-}
-
 export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
@@ -41,10 +33,7 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
 
   const post = useCallback(
     async (path: string, label: string) => {
-      if (!live) {
-        setError("OFFLINE PREVIEW — ACTIONS DISABLED");
-        return;
-      }
+      if (!live) return;
       setPending(label);
       setError(null);
       try {
@@ -55,7 +44,7 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         router.refresh();
       } catch {
-        setError(`${label} FAILED — RETRY`);
+        setError(`${label} FAILED — NOTHING CHANGED · RETRY`);
       } finally {
         setPending(null);
       }
@@ -68,6 +57,8 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || pending !== null) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("input, textarea, select, [contenteditable]")) return;
       const key = e.key.toLowerCase();
       if (key === "d") post(`/api/v1/tasks/${taskId}/complete`, "DONE");
       else if (key === "s") post(`/api/v1/tasks/${taskId}/skip?mode=reserve`, "SKIP");
@@ -76,8 +67,10 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [post, taskId, pending]);
 
+  const locked = !live || pending !== null;
+
   return (
-    <div>
+    <div className="action-block">
       <div className="actions">
         <button
           type="button"
@@ -85,7 +78,7 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
           aria-label="Mark done (keyboard: D)"
           aria-busy={pending === "DONE"}
           data-pending={pending === "DONE" || undefined}
-          disabled={pending !== null}
+          disabled={locked}
           onClick={() => post(`/api/v1/tasks/${taskId}/complete`, "DONE")}
         >
           {pending === "DONE" ? (
@@ -107,7 +100,7 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
           aria-label="Skip task (keyboard: S)"
           aria-busy={pending === "SKIP"}
           data-pending={pending === "SKIP" || undefined}
-          disabled={pending !== null}
+          disabled={locked}
           onClick={() => post(`/api/v1/tasks/${taskId}/skip?mode=reserve`, "SKIP")}
         >
           {pending === "SKIP" ? (
@@ -123,18 +116,8 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
             </>
           )}
         </button>
-        <button
-          type="button"
-          className="btn btn-chunk"
-          aria-label="Break down task (coming soon)"
-          disabled
-          title="Chunking lands with the breakdown API"
-        >
-          <IconBreak />
-          <span>CHUNK</span>
-          <span className="tag">SOON</span>
-        </button>
       </div>
+
       {error && (
         <div className="form-error mono" role="alert">
           <span className="form-error-mark" aria-hidden="true">
@@ -142,6 +125,12 @@ export default function FocusActions({ taskId, apiUrl, phone, live }: Props) {
           </span>
           {error}
         </div>
+      )}
+
+      {!live && (
+        <p className="action-note mono">
+          PREVIEW — ACTIONS DISABLED UNTIL THE ENGINE IS REACHABLE
+        </p>
       )}
     </div>
   );

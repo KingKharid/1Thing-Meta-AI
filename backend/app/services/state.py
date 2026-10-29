@@ -41,6 +41,29 @@ class SingleActiveTaskGuard:
             .first()
         )
 
+    def promote_next(
+        self, db: Session, user_id: int, exclude_id: int | None = None
+    ) -> Task | None:
+        """Surface the least-recently-touched reserve task as active.
+
+        Touch-ordering sends skipped or demoted work to the back, and
+        ``exclude_id`` (the just-skipped task) keeps a skip with an empty
+        reserve from re-activating the same row: promotion then settles to
+        ``None`` and the surface honestly empties. WhatsApp, web, and watch
+        share this ordering so every surface hands back the same "next".
+        """
+        query = (
+            db.query(Task)
+            .filter(Task.user_id == user_id, Task.status == TaskStatus.QUEUED)
+            .order_by(Task.updated_at.asc(), Task.id.asc())
+        )
+        if exclude_id is not None:
+            query = query.filter(Task.id != exclude_id)
+        nxt = query.first()
+        if nxt is not None:
+            self.activate_task(db, nxt)
+        return nxt
+
     def activate_task(
         self,
         db: Session,

@@ -13,60 +13,42 @@ export default function Loading() {
             <i className="status-dot" aria-hidden="true" />
             ENGINE // LINKING
           </span>
-          <span className="status-chip">
-            <i className="status-dot status-dot-steady" aria-hidden="true" />
-            INVARIANTS // 7 ARMED
-          </span>
         </div>
       </header>
 
       <main className="focus-wrap">
         <div className="focus-column">
-          <div className="focus-kicker mono">
-            <span className="kicker-left">
-              <span className="kicker-mark" aria-hidden="true" />
-              ESTABLISHING LINK
-            </span>
-            <span className="kicker-right">SURFACE // WEB SANCTUARY</span>
-          </div>
-
           <section className="focus-card" aria-label="Loading current task">
-            <div className="skel skel-title" />
+            <div className="skel skel-head" />
+            <div className="skel skel-label" />
             <div className="skel skel-step" />
+            <div className="skel skel-step-short" />
+
             <div className="skel-meta">
-              <div className="skel skel-pill" />
-              <div className="skel skel-pill" />
+              <span className="skel skel-pill" />
             </div>
-            <div className="skel skel-reserve" />
+
             <div className="skel-actions">
-              <div className="skel skel-btn" />
-              <div className="skel skel-btn" />
-              <div className="skel skel-btn" />
+              <span className="skel skel-btn" />
+              <span className="skel skel-btn" />
             </div>
-            <div className="hint-block" style={{ marginTop: 26 }}>
-              <div className="kv">
-                <span className="kv-key">FETCH</span>
-                <span className="kv-val">/api/v1/focus …</span>
-              </div>
-              <div className="kv">
-                <span className="kv-key">AUTH</span>
-                <span className="kv-val">HEADER-MVP …</span>
-              </div>
-              <div className="kv">
-                <span className="kv-key">STATE</span>
-                <span className="kv-val">HYDRATING …</span>
-              </div>
-            </div>
+
+            <div className="skel skel-reserve" />
           </section>
+
+          <div className="skel-composer" aria-hidden="true">
+            <span className="skel skel-line" />
+            <span className="skel skel-line is-short" />
+          </div>
         </div>
       </main>
 
       <footer className="footbar mono">
         <span className="footbar-item">
           <i className="foot-dot" aria-hidden="true" />
-          SINGLE-ACTIVE INVARIANT ARMED
+          NEVER SHOW THE MOUNTAIN
         </span>
-        <span className="footbar-item">NEVER SHOW THE MOUNTAIN</span>
+        <span className="footbar-item">LOADING</span>
       </footer>
     </div>
   );

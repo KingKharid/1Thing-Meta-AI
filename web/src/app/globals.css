@@ -13,8 +13,8 @@
   /* Ink */
   --bone: #f9f8f6;
   --text-dim: rgba(249, 248, 246, 0.64);
-  --text-faint: rgba(249, 248, 246, 0.42);
-  --text-ghost: rgba(249, 248, 246, 0.26);
+  --text-faint: rgba(249, 248, 246, 0.58);
+  --text-ghost: rgba(249, 248, 246, 0.52);
 
   /* Signal */
   --amber: #f59e0b;
@@ -67,6 +67,12 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Links are structural, not blue. */
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 * {
@@ -302,25 +308,53 @@ body {
   width: 5px;
   height: 5px;
   flex: none;
-  background: var(--amber);
+  background: var(--text-ghost);
 }
 
 .kicker-right {
   color: var(--text-ghost);
 }
 
+/* ------------------------------------------------------- surface heading */
+
+/* The task title is a kicker, not the headline: the physical step owns
+   the screen. Title stays one line and truncates rather than wrapping. */
+.focus-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  animation: rise 520ms var(--ease-out) 40ms both;
+}
+
+.focus-task {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-serial {
+  flex: none;
+  color: var(--text-ghost);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
 /* ----------------------------------------------------------------- card */
 
 .focus-card {
   position: relative;
-  padding: clamp(28px, 4.4vw, 48px);
+  padding: clamp(32px, 4.8vw, 56px);
   background:
     linear-gradient(180deg, rgba(249, 248, 246, 0.024), transparent 42%),
     linear-gradient(180deg, var(--carbon-raised), var(--carbon));
   border: 1px solid var(--hairline-strong);
-  box-shadow:
-    inset 0 1px 0 rgba(249, 248, 246, 0.045),
-    0 40px 80px -48px rgba(0, 0, 0, 0.9);
+  box-shadow: inset 0 1px 0 rgba(249, 248, 246, 0.045);
   animation: cardin var(--dur-slow) var(--ease-out) both;
 }
 
@@ -333,16 +367,39 @@ body {
   pointer-events: none;
 }
 
-/* Amber registration mark on the top rail. */
+/* Standby: the same plate, held open. Quieter than an active task, so an
+   empty surface never impersonates a live one. */
+.focus-card-idle {
+  border-color: var(--hairline);
+  background:
+    linear-gradient(180deg, rgba(249, 248, 246, 0.014), transparent 42%),
+    linear-gradient(180deg, var(--carbon), var(--erebus));
+}
+
+.focus-card-idle::before {
+  border-color: rgba(249, 248, 246, 0.03);
+}
+
+/* A failure is the focal event, so it earns the amber rail. Nothing else
+   on this card turns amber. */
+.focus-card-error {
+  border-left: 2px solid var(--amber);
+}
+
+.focus-card-error .focus-task {
+  color: var(--amber);
+}
+
+/* Machined registration mark on the top rail — bone, not amber: amber is
+   reserved for the step itself. */
 .focus-card::after {
   content: "";
   position: absolute;
   top: -1px;
-  left: clamp(28px, 4.4vw, 48px);
+  left: clamp(32px, 4.8vw, 56px);
   width: 56px;
   height: 1px;
-  background: linear-gradient(90deg, var(--amber), rgba(245, 158, 11, 0));
-  opacity: 0.85;
+  background: linear-gradient(90deg, rgba(249, 248, 246, 0.34), rgba(249, 248, 246, 0));
   pointer-events: none;
 }
 
@@ -369,11 +426,11 @@ body {
 }
 
 .focus-title {
-  margin: 0 0 26px;
-  font-size: clamp(28px, 4vw, 40px);
+  margin: 0 0 22px;
+  font-size: clamp(30px, 4.2vw, 44px);
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
+  line-height: 1.08;
+  letter-spacing: -0.028em;
   text-wrap: balance;
   overflow-wrap: break-word;
   color: var(--bone);
@@ -381,114 +438,112 @@ body {
 }
 
 .focus-sub {
-  max-width: 48ch;
-  margin: -10px 0 26px;
-  color: var(--text-faint);
-  font-size: 14px;
+  max-width: 46ch;
+  margin: 0 0 28px;
+  color: var(--text-dim);
+  font-size: 15px;
   line-height: 1.6;
   animation: rise 520ms var(--ease-out) 90ms both;
 }
 
-/* ----------------------------------------------------------- step strip */
+/* ------------------------------------------------------------- the step */
 
-/* The single living surface: amber hairline, sonar pip, slow breath. */
-.step-strip {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 22px;
-  padding: 18px 20px 18px 22px;
-  border: 1px solid rgba(245, 158, 11, 0.18);
-  border-left: 2px solid var(--amber);
-  background: linear-gradient(
-    100deg,
-    rgba(245, 158, 11, 0.075),
-    rgba(245, 158, 11, 0.018) 58%,
-    transparent
-  );
-  animation:
-    rise 520ms var(--ease-out) 120ms both,
-    stepbreathe 4.2s ease-in-out 900ms infinite;
-}
-
-@keyframes stepbreathe {
-  0%,
-  100% {
-    border-top-color: rgba(245, 158, 11, 0.18);
-    border-right-color: rgba(245, 158, 11, 0.18);
-    border-bottom-color: rgba(245, 158, 11, 0.18);
-    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
-  }
-  50% {
-    border-top-color: rgba(245, 158, 11, 0.4);
-    border-right-color: rgba(245, 158, 11, 0.4);
-    border-bottom-color: rgba(245, 158, 11, 0.4);
-    box-shadow: 0 0 30px -12px rgba(245, 158, 11, 0.45);
-  }
-}
-
-.step-label {
-  font-size: 8px;
-  letter-spacing: 0.22em;
-  color: rgba(245, 158, 11, 0.62);
-}
-
-.step-body {
-  display: flex;
+/* The hero: the physical action, not the task title. The single amber tick
+   above it is the only amber on this screen. */
+.focus-step-label {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--amber);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  animation: rise 520ms var(--ease-out) 80ms both;
 }
 
-.step-text {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: 0.05em;
-  color: var(--amber-warm);
-  overflow-wrap: break-word;
-}
-
-.step-strip[data-state="idle"] {
-  border: 1px dashed var(--hairline-strong);
-  border-left: 2px solid var(--hairline-strong);
-  background: rgba(249, 248, 246, 0.015);
-  animation: rise 520ms var(--ease-out) 120ms both;
-}
-
-.step-strip[data-state="idle"] .step-label {
-  color: var(--text-ghost);
-}
-
-.step-strip[data-state="idle"] .step-text {
-  color: var(--text-dim);
-}
-
-.livepip {
-  position: relative;
-  width: 7px;
-  height: 7px;
+.step-tick {
+  width: 6px;
+  height: 6px;
   flex: none;
   background: var(--amber);
 }
 
-.livepip::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  animation: sonar 2.4s ease-out infinite;
+.focus-step {
+  max-width: 24ch;
+  margin: 0 0 28px;
+  color: var(--bone);
+  font-size: clamp(32px, 4.8vw, 48px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  animation: rise 520ms var(--ease-out) 120ms both;
 }
 
-.step-strip[data-state="idle"] .livepip {
-  background: transparent;
-  border: 1px solid var(--hairline-bright);
+/* A step that runs long degrades to two tiers: the verb stays large, the
+   object recedes a little. Never a wall of 48px text. */
+.focus-step.is-long {
+  font-size: clamp(26px, 3.4vw, 34px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  max-width: 30ch;
 }
 
-.step-strip[data-state="idle"] .livepip::after {
-  display: none;
+/* No step: the honest state. No amber tick, because there is no step for
+   it to mark, and no borrowed placeholder. */
+.focus-step-label.is-missing {
+  color: var(--text-faint);
+}
+
+.focus-step.is-pending {
+  color: var(--text-dim);
+  font-size: clamp(24px, 3vw, 30px);
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+.focus-pending {
+  max-width: 44ch;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.derive {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.derive-btn {
+  padding: 10px 16px;
+  background: none;
+  border: 1px solid var(--hairline-strong);
+  color: var(--bone);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.derive-btn:hover:enabled {
+  border-color: var(--hairline-bright);
+}
+
+.derive-btn:disabled {
+  color: var(--text-ghost);
+  cursor: default;
+}
+
+.derive-fail {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
 }
 
 @keyframes sonar {
@@ -505,125 +560,30 @@ body {
 
 /* ------------------------------------------------------------ ingest bay */
 
-/* The standby hero: a listening bay with a slow scan, so an empty queue
-   still feels like a live surface rather than a blank state. */
-.ingest-bay {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+/* The one honest call to action on the standby surface. */
+.ingest-cta {
+  display: inline-flex;
   align-items: center;
-  gap: 18px;
-  margin-bottom: 22px;
-  padding: 22px;
-  overflow: hidden;
-  border: 1px dashed var(--hairline-strong);
-  background:
-    radial-gradient(420px 120px at 16% 50%, rgba(245, 158, 11, 0.07), transparent 70%),
-    rgba(249, 248, 246, 0.012);
-  animation: rise 520ms var(--ease-out) 120ms both;
-}
-
-.ingest-bay::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(245, 158, 11, 0.045),
-    transparent
-  );
-  transform: translateX(-100%);
-  animation: ingestsweep 6s ease-in-out 1.2s infinite;
-  pointer-events: none;
-}
-
-@keyframes ingestsweep {
-  0%,
-  55% {
-    transform: translateX(-100%);
-  }
-  85%,
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.ingest-target {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  flex: none;
-  border: 1px solid rgba(245, 158, 11, 0.28);
-}
-
-.ingest-target::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  border: 1px solid rgba(245, 158, 11, 0.18);
-}
-
-.ingest-target-ring {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  animation: sonar 2.8s ease-out infinite;
-}
-
-.ingest-target-pip {
-  width: 7px;
-  height: 7px;
-  background: var(--amber);
-}
-
-.ingest-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.ingest-title {
+  gap: 8px;
+  margin-bottom: 26px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--hairline-bright);
   color: var(--bone);
-  font-size: 12px;
+  font-size: 10px;
   letter-spacing: 0.18em;
-}
-
-.ingest-line {
-  color: var(--text-faint);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-}
-
-.ingest-channels {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.channel-chip {
-  padding: 5px 8px;
-  border: 1px solid var(--hairline);
-  background: rgba(249, 248, 246, 0.02);
-  color: var(--text-faint);
-  font-size: 8px;
-  letter-spacing: 0.14em;
   transition:
-    border-color var(--dur) var(--ease-out),
     color var(--dur) var(--ease-out),
-    background-color var(--dur) var(--ease-out);
+    border-color var(--dur) var(--ease-out);
 }
 
-.channel-chip:hover {
-  border-color: var(--hairline-bright);
-  background: rgba(249, 248, 246, 0.045);
-  color: var(--bone);
+.ingest-cta:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.ingest-cta:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 4px;
 }
 
 /* ----------------------------------------------------------------- meta */
@@ -680,6 +640,12 @@ body {
   color: var(--amber-warm);
 }
 
+.pill-ghost {
+  border-color: var(--hairline);
+  background: transparent;
+  color: var(--text-faint);
+}
+
 .pill-dot {
   width: 5px;
   height: 5px;
@@ -689,108 +655,77 @@ body {
 
 /* -------------------------------------------------------------- reserve */
 
-.reserve-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
-  padding: 13px 16px;
-  border: 1px solid var(--hairline);
-  background: rgba(249, 248, 246, 0.015);
-  animation: rise 520ms var(--ease-out) 240ms both;
-  transition:
-    border-color var(--dur) var(--ease-out),
-    background-color var(--dur) var(--ease-out);
-}
-
-.reserve-row:hover {
-  border-color: var(--hairline-strong);
-  background: rgba(249, 248, 246, 0.028);
-}
-
-.reserve-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.reserve-label {
-  font-size: 8px;
-  letter-spacing: 0.22em;
-  color: var(--text-ghost);
-}
-
-.reserve-value {
-  overflow: hidden;
-  color: var(--text-dim);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reserve-hint {
-  color: var(--text-ghost);
-}
-
-.meter {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-}
-
-.meter i {
-  width: 7px;
-  height: 14px;
-  background: linear-gradient(180deg, var(--amber-warm), var(--amber));
-  opacity: 0.9;
-  transform-origin: bottom;
-  animation: meterpop 420ms var(--ease-spring) both;
-}
-
-@keyframes meterpop {
-  from {
-    opacity: 0;
-    transform: scaleY(0.2);
-  }
-  to {
-    opacity: 0.9;
-    transform: scaleY(1);
-  }
-}
-
-.meter-clear {
+/* One primitive on every surface: stack glyph + count + "in reserve · hidden".
+   The reserve never shows a title, a name, or a preview — count only. */
+.reserve-line {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
+  margin: 0 0 28px;
+  color: var(--text-faint);
+  animation: rise 520ms var(--ease-out) 240ms both;
+}
+
+.reserve-glyph {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border: 1px solid var(--hairline-bright);
+}
+
+/* Offset second plate: the stack reads as "more than one, folded away". */
+.reserve-glyph::before {
+  content: "";
+  position: absolute;
+  inset: 3px -4px -4px 3px;
+  border: 1px solid var(--hairline-strong);
+  border-left-color: transparent;
+  border-top-color: transparent;
+}
+
+.reserve-count {
+  color: var(--bone);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.reserve-text {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+
+.reserve-line.is-clear {
   color: var(--emerald);
-  font-size: 9px;
-  letter-spacing: 0.16em;
 }
 
-.meter-clear i {
-  width: 7px;
-  height: 7px;
-  background: var(--emerald);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-  animation: none;
+.reserve-line.is-clear .reserve-glyph {
+  border-color: rgba(16, 185, 129, 0.55);
 }
 
-.meter-more {
-  margin-left: 3px;
-  color: var(--amber);
-  font-size: 9px;
+.reserve-line.is-clear .reserve-glyph::before {
+  border-color: rgba(16, 185, 129, 0.3);
+  border-left-color: transparent;
+  border-top-color: transparent;
+}
+
+.reserve-line.is-clear .reserve-count {
+  color: var(--emerald);
 }
 
 /* -------------------------------------------------------------- actions */
 
+/* Two actions, unequal weight. DONE is the machined bone key; SKIP is a
+   hairline outline that never competes. */
+.action-block {
+  display: flex;
+  flex-direction: column;
+}
+
 .actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 12px;
   animation: rise 520ms var(--ease-out) 300ms both;
 }
 
@@ -798,28 +733,27 @@ body {
   position: relative;
   appearance: none;
   overflow: hidden;
-  min-height: 52px;
-  padding: 0 14px;
+  min-height: 56px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  background: rgba(249, 248, 246, 0.022);
+  gap: 9px;
+  background: transparent;
   border: 1px solid var(--hairline);
   color: var(--bone);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   cursor: pointer;
   transition:
     transform var(--dur) var(--ease-out),
     border-color var(--dur) var(--ease-out),
     background-color var(--dur) var(--ease-out),
-    color var(--dur) var(--ease-out),
-    box-shadow var(--dur) var(--ease-out);
+    color var(--dur) var(--ease-out);
 }
 
-/* Sheen sweeps across on hover. */
+/* Sheen sweeps across on hover — outline buttons only. */
 .btn::before {
   content: "";
   position: absolute;
@@ -849,8 +783,6 @@ body {
 
 .btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--hairline-bright);
-  background: rgba(249, 248, 246, 0.05);
 }
 
 .btn:hover:not(:disabled)::before {
@@ -858,7 +790,7 @@ body {
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(0) scale(0.985);
+  transform: translateY(0) scale(0.99);
   transition-duration: 80ms;
 }
 
@@ -868,7 +800,7 @@ body {
 }
 
 .btn:disabled {
-  opacity: 0.36;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -878,51 +810,67 @@ body {
   cursor: progress;
 }
 
+/* DONE — bone fill, Erebus text. A physical key, not a green SaaS button. */
 .btn-done {
-  border-color: rgba(16, 185, 129, 0.2);
+  border-color: var(--bone);
+  background: var(--bone);
+  color: var(--erebus);
+  font-weight: 600;
+}
+
+.btn-done::before {
+  display: none;
 }
 
 .btn-done:hover:not(:disabled) {
-  border-color: rgba(16, 185, 129, 0.62);
-  background: rgba(16, 185, 129, 0.07);
-  color: var(--emerald);
-  box-shadow: 0 10px 26px -16px rgba(16, 185, 129, 0.9);
-}
-
-.btn-done:hover:not(:disabled) svg {
-  transform: scale(1.12);
+  border-color: #ffffff;
+  background: #ffffff;
+  color: var(--erebus);
 }
 
 .btn-done:active:not(:disabled),
 .btn-done[data-pending="true"] {
-  border-color: var(--emerald);
-  background: var(--emerald);
+  border-color: var(--bone);
+  background: rgba(249, 248, 246, 0.86);
   color: var(--erebus);
-  box-shadow: none;
 }
 
-.btn-skip,
-.btn-chunk {
-  border-color: rgba(245, 158, 11, 0.16);
+.btn-done kbd {
+  border-color: rgba(12, 13, 14, 0.28);
+  background: transparent;
+  color: rgba(12, 13, 14, 0.62);
+}
+
+/* SKIP — outline only. Never amber, never emerald. */
+.btn-skip {
+  border-color: var(--hairline-strong);
+  background: transparent;
+  color: var(--text-dim);
 }
 
 .btn-skip:hover:not(:disabled) {
-  border-color: rgba(245, 158, 11, 0.6);
-  background: rgba(245, 158, 11, 0.06);
-  color: var(--amber);
-  box-shadow: 0 10px 26px -16px rgba(245, 158, 11, 0.95);
+  border-color: var(--hairline-bright);
+  background: rgba(249, 248, 246, 0.035);
+  color: var(--bone);
+}
+
+.btn-skip:active:not(:disabled),
+.btn-skip[data-pending="true"] {
+  border-color: var(--bone);
+  background: rgba(249, 248, 246, 0.08);
+  color: var(--bone);
 }
 
 .btn-skip:hover:not(:disabled) svg {
   transform: translateX(2px);
 }
 
-.btn-skip:active:not(:disabled),
-.btn-skip[data-pending="true"] {
-  border-color: var(--amber);
-  background: var(--amber);
-  color: var(--erebus);
-  box-shadow: none;
+.action-note {
+  margin: 14px 0 0;
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  line-height: 1.6;
 }
 
 .btn-busy {
@@ -947,29 +895,23 @@ body {
   }
 }
 
-.btn kbd,
-.btn .tag {
+.btn kbd {
   position: absolute;
   top: 50%;
-  right: 9px;
+  right: 10px;
   transform: translateY(-50%);
   padding: 2px 5px;
   border: 1px solid var(--hairline-strong);
   background: rgba(12, 13, 14, 0.4);
   color: var(--text-faint);
   font-family: inherit;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   letter-spacing: 0.06em;
   transition:
     border-color var(--dur) var(--ease-out),
     color var(--dur) var(--ease-out),
     background-color var(--dur) var(--ease-out);
-}
-
-.btn .tag {
-  font-size: 8px;
-  letter-spacing: 0.12em;
 }
 
 .btn:hover:not(:disabled) kbd {
@@ -991,8 +933,9 @@ body {
   border-left: 2px solid var(--amber);
   background: rgba(245, 158, 11, 0.06);
   color: var(--amber-warm);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
+  line-height: 1.5;
   animation: rise 260ms var(--ease-out) both;
 }
 
@@ -1004,7 +947,7 @@ body {
   height: 16px;
   flex: none;
   border: 1px solid currentColor;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* ------------------------------------------------------------- card foot */
@@ -1019,7 +962,7 @@ body {
   padding-top: 16px;
   border-top: 1px solid var(--hairline);
   color: var(--text-ghost);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   animation: rise 520ms var(--ease-out) 360ms both;
 }
@@ -1035,55 +978,6 @@ body {
   height: 4px;
   flex: none;
   background: currentColor;
-}
-
-/* ------------------------------------------------------------ hint grid */
-
-.hint-block {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  border: 1px solid var(--hairline);
-  background: var(--hairline);
-  animation: rise 520ms var(--ease-out) 300ms both;
-}
-
-.hint-block .kv {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 14px;
-  background: var(--carbon);
-  transition: background-color var(--dur) var(--ease-out);
-}
-
-.hint-block .kv:hover {
-  background: var(--carbon-raised);
-}
-
-.hint-block .kv-key {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-ghost);
-  font-size: 8px;
-  letter-spacing: 0.2em;
-}
-
-.kv-dot {
-  width: 5px;
-  height: 5px;
-  flex: none;
-  background: var(--emerald);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
-}
-
-.hint-block .kv-val {
-  color: var(--text-dim);
-  font-size: 9px;
-  line-height: 1.6;
-  letter-spacing: 0.05em;
-  text-align: left;
 }
 
 /* -------------------------------------------------------------- skeleton */
@@ -1116,47 +1010,77 @@ body {
   }
 }
 
-.skel-title {
-  width: 72%;
-  height: 40px;
+.skel-head {
+  width: 46%;
+  height: 12px;
   margin-bottom: 26px;
 }
 
+.skel-label {
+  width: 74px;
+  height: 12px;
+  margin-bottom: 16px;
+}
+
+/* Two lines: the hero step is rarely a single line. */
 .skel-step {
-  height: 66px;
-  margin-bottom: 22px;
+  width: 84%;
+  height: 44px;
+  margin-bottom: 10px;
+}
+
+.skel-step-short {
+  width: 58%;
+  height: 44px;
+  margin-bottom: 28px;
 }
 
 .skel-meta {
   display: flex;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
 }
 
 .skel-pill {
-  width: 72px;
+  width: 82px;
   height: 28px;
 }
 
 .skel-reserve {
-  height: 46px;
-  margin-bottom: 22px;
-}
-
-.skel-line {
-  width: 58%;
+  width: 190px;
   height: 14px;
   margin-bottom: 28px;
 }
 
 .skel-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 12px;
 }
 
 .skel-btn {
-  height: 52px;
+  height: 56px;
+}
+
+/* The composer holds the same footprint while the card resolves, so the
+   surface never jumps under the cursor. */
+.skel-composer {
+  margin-top: 12px;
+  border: 1px solid var(--hairline);
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.skel-line {
+  width: 46%;
+  height: 12px;
+}
+
+.skel-line.is-short {
+  width: 28%;
+  height: 10px;
 }
 
 /* --------------------------------------------------------------- footbar */
@@ -1169,11 +1093,12 @@ body {
   padding: 16px clamp(20px, 4vw, 40px);
   border-top: 1px solid var(--hairline);
   color: var(--text-ghost);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.16em;
 }
 
-.footbar > span {
+.footbar > span,
+.footbar-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1182,6 +1107,31 @@ body {
 .footbar .foot-dot {
   background: var(--emerald);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+}
+
+/* The only route out of the sanctuary: quiet, but findable. */
+.footbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid transparent;
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  transition:
+    color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+
+.footbar-link:hover {
+  border-color: var(--hairline-bright);
+  color: var(--bone);
+}
+
+.footbar-link:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 4px;
 }
 
 /* --------------------------------------------------------- admin control */
@@ -1214,7 +1164,7 @@ body {
 .admin-sub {
   margin: 0;
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.14em;
 }
 
@@ -1260,7 +1210,7 @@ body {
 
 .summary-key {
   color: var(--text-ghost);
-  font-size: 8px;
+  font-size: 9px;
   letter-spacing: 0.2em;
 }
 
@@ -1270,6 +1220,20 @@ body {
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
+}
+
+/* A clock is not a metric: same cell, smaller voice. */
+.summary-val-time {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+/* Nothing to report: no colour, no claim. */
+.summary-val-muted {
+  color: var(--text-ghost);
 }
 
 .admin-grid {
@@ -1297,6 +1261,24 @@ body {
   background-color: var(--carbon-raised);
 }
 
+/* Attention is structural, not a word: the failing plane gets an amber rail
+   and a warm wash so the eye finds it before it reads anything. */
+.plane[data-attention="true"] {
+  border-left: 2px solid var(--amber);
+  background:
+    linear-gradient(90deg, rgba(245, 158, 11, 0.05), transparent 46%),
+    var(--carbon);
+}
+
+.plane[data-attention="true"]:hover {
+  border-left-color: var(--amber-warm);
+}
+
+/* Offline: the shells stay, the metrics don't pretend. */
+.plane[data-offline="true"] .kv-val {
+  color: var(--text-faint);
+}
+
 .plane-head {
   display: flex;
   align-items: center;
@@ -1315,7 +1297,7 @@ body {
 }
 
 .plane-index {
-  color: var(--amber);
+  color: var(--text-ghost);
   font-size: 9px;
   letter-spacing: 0.12em;
 }
@@ -1336,12 +1318,17 @@ body {
   gap: 6px;
   flex: none;
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.14em;
 }
 
 .plane-state.is-warn {
   color: var(--amber);
+}
+
+/* Offline is not an alert on every plane: one badge at the top says it. */
+.plane-state.is-offline {
+  color: var(--text-ghost);
 }
 
 .square {
@@ -1452,36 +1439,17 @@ body {
     display: none;
   }
 
-  .actions,
-  .skel-actions {
-    grid-template-columns: 1fr;
-  }
-
+  /* Keep DONE and SKIP side by side: stacking gives DONE a billboard and
+     SKIP equal weight, which is exactly the hierarchy we removed. */
   .btn {
-    min-height: 48px;
-    justify-content: flex-start;
-    padding-left: 18px;
+    min-height: 52px;
+    padding: 0 12px;
+    font-size: 10px;
   }
 
-  .btn kbd,
-  .btn .tag {
-    right: 14px;
-  }
-
-  .hint-block {
-    grid-template-columns: 1fr;
-  }
-
-  .ingest-bay {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: 14px;
-    padding: 18px;
-  }
-
-  .ingest-channels {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+  .btn kbd {
+    right: 8px;
+    font-size: 9px;
   }
 
   .summary-rail {
@@ -1492,8 +1460,8 @@ body {
     width: 100%;
   }
 
-  .reserve-row {
-    flex-wrap: wrap;
+  .focus-card {
+    padding: 26px 22px 24px;
   }
 
   .card-foot,
@@ -1518,8 +1486,247 @@ body {
     display: none;
   }
 
-  .step-text {
-    font-size: 13px;
+  .focus-step {
+    font-size: 30px;
+  }
+
+  .focus-step.is-long {
+    font-size: 24px;
+  }
+
+  .focus-head {
+    gap: 10px;
+  }
+}
+
+/* --------------------------------------------------------- capture composer */
+
+/* A message bar, not a form: the prompt glyph, one line to say the thing,
+   a quieter line for the first move, and a small send key. No labels, no
+   filled button — the card above is the answer, this is how you talk. */
+.composer {
+  margin-top: 12px;
+  background: var(--erebus);
+  border: 1px solid var(--hairline);
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.composer:focus-within {
+  border-color: var(--hairline-bright);
+}
+
+.composer-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 18px 16px;
+}
+
+.composer-prompt {
+  flex: none;
+  padding-top: 1px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-ghost);
+  user-select: none;
+}
+
+.composer-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.composer-input {
+  width: 100%;
+  background: none;
+  border: 0;
+  outline: none;
+  padding: 0;
+  color: var(--bone);
+  font-family: inherit;
+}
+
+/* The composer has no visible labels — the placeholders carry the meaning —
+   but every field keeps a real label for screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.composer-input::placeholder {
+  color: var(--text-ghost);
+}
+
+.composer-input:disabled {
+  opacity: 0.5;
+}
+
+.composer-input-main {
+  /* A textarea now: the box grows with the dump up to MAX_HEIGHT, then
+     scrolls. The drag handle is off — this is a message bar, not a form. */
+  display: block;
+  min-height: 22px;
+  max-height: 280px;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* The first move is the reply, so it sits under the message like an
+   attachment line rather than as a second field. */
+.composer-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-sub-glyph {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-ghost);
+  user-select: none;
+}
+
+/* Replaces the old second field: a quiet reminder of how to add a line. */
+.composer-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-ghost);
+  user-select: none;
+}
+
+/* Only appears when the dump gets long enough for the ceiling to matter. */
+.composer-count {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A key, not a call to action: quiet until there is something to send. */
+.composer-send {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-end;
+  min-height: 32px;
+  padding: 0 2px;
+  background: none;
+  border: 0;
+  color: var(--text-ghost);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  transition: color var(--dur-fast) ease;
+}
+
+.composer-send:enabled {
+  color: var(--bone);
+}
+
+.composer-send:disabled {
+  cursor: default;
+}
+
+.composer-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border: 1px solid var(--hairline-strong);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.composer-send:enabled .composer-key {
+  border-color: var(--hairline-bright);
+}
+
+/* The engine's answer, in one line. */
+.composer-receipt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 18px 16px 42px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+}
+
+.receipt-pip {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  background: var(--emerald);
+}
+
+.composer-receipt.is-error {
+  color: var(--text-dim);
+}
+
+.composer-receipt.is-error .receipt-pip {
+  background: var(--amber);
+}
+
+/* Filed, but the engine did not return a step: a partial success, marked
+   honestly instead of being dressed up as a finished one. */
+.composer-receipt.is-partial {
+  color: var(--text-dim);
+}
+
+.composer-receipt.is-partial .receipt-pip {
+  background: var(--amber);
+}
+
+.composer-note {
+  margin: 0;
+  padding: 0 18px 16px 42px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-ghost);
+}
+
+@media (max-width: 560px) {
+  .composer-form {
+    gap: 10px;
+    padding: 16px 14px 14px;
+  }
+
+  .composer-receipt,
+  .composer-note {
+    padding-left: 36px;
+    padding-right: 14px;
+  }
+
+  /* On a phone the key alone is the send affordance: the message needs the
+     width more than the word does. */
+  .composer-send-label {
+    display: none;
+  }
+
+  .composer-send {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: flex-end;
+    padding: 0 4px;
   }
 }
 
