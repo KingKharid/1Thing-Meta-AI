@@ -1710,6 +1710,13 @@ a {
     padding: 16px 14px 14px;
   }
 
+  /* The keyboard eats the bottom half of a phone. A 280px box would push
+     the send key out of reach, so a long dump scrolls inside a shorter
+     box instead — the key stays above the fold. */
+  .composer-input-main {
+    max-height: 160px;
+  }
+
   .composer-receipt,
   .composer-note {
     padding-left: 36px;
@@ -1728,6 +1735,73 @@ a {
     justify-content: flex-end;
     padding: 0 4px;
   }
+}
+
+/* ------------------------------------------------------------ demo entry */
+
+/* The demo entry is a button, not a link: it mutates the demo account. */
+button.ingest-cta {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hairline-bright);
+  padding: 0 0 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.ingest-cta:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.demo-dump-preview {
+  margin: 2px 0 26px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  background: rgba(249, 248, 246, 0.015);
+}
+
+.demo-doors {
+  display: grid;
+  gap: 20px;
+  margin: 4px 0 30px;
+}
+
+.demo-door {
+  padding-left: 14px;
+  border-left: 1px solid var(--hairline-bright);
+}
+
+.demo-door .ingest-cta {
+  margin-bottom: 8px;
+}
+
+.demo-door-note {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.demo-dump-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-ghost);
+}
+
+.demo-dump-text {
+  margin: 0;
+  max-height: 142px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
+  mask-image: linear-gradient(180deg, #000 68%, transparent);
 }
 
 /* --------------------------------------------------------- reduced motion */

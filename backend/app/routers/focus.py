@@ -23,9 +23,10 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.models import Task, TaskStatus, get_db, get_or_create_user
+from app.services.ratelimit import rate_limit
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
-from app.services.triage import extract_or_fallback, triage
+from app.services.triage import extract_or_fallback, log_model_attempts, triage
 
 router = APIRouter(prefix="/api/v1", tags=["focus"])
 
@@ -162,7 +163,12 @@ def read_focus(
     )
 
 
-@router.post("/tasks", response_model=TaskCreateOut, status_code=201)
+@router.post(
+    "/tasks",
+    response_model=TaskCreateOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit)],
+)
 def create_task(
     payload: TaskCreate,
     db: Session = Depends(get_db),
@@ -202,10 +208,11 @@ def create_task(
     step_source: Literal["user", "engine", "heuristic", "none"] = "none"
     entries: list[dict]
 
+    attempts: list[dict] = []
     if dump:
         full_text = f"{title}\n\n{dump}" if title else dump
         entries, used_fallback = extract_or_fallback(
-            full_text, suggest_context(db, user_id)
+            full_text, suggest_context(db, user_id), attempt_log=attempts
         )
         if not entries:
             raise HTTPException(
@@ -228,7 +235,7 @@ def create_task(
         ]
         step_source = "user"
     else:
-        derived = triage(title, suggest_context(db, user_id))
+        derived = triage(title, suggest_context(db, user_id), attempt_log=attempts)
         if derived is not None:
             entries = [derived]
             step_source = "engine"
@@ -266,6 +273,7 @@ def create_task(
         guard.activate_task(db, tasks[0])
         active = tasks[0]
         activated = True
+    log_model_attempts(db, user_id, attempts)
     db.commit()
 
     return TaskCreateOut(
@@ -279,7 +287,11 @@ def create_task(
     )
 
 
-@router.post("/tasks/{task_id}/derive", response_model=TaskOut)
+@router.post(
+    "/tasks/{task_id}/derive",
+    response_model=TaskOut,
+    dependencies=[Depends(rate_limit)],
+)
 def derive_step(
     task_id: int,
     db: Session = Depends(get_db),
@@ -296,7 +308,8 @@ def derive_step(
     if task.status is TaskStatus.ARCHIVED:
         raise HTTPException(status_code=400, detail="Archived tasks cannot be revised")
 
-    derived = triage(task.title, suggest_context(db, user_id))
+    attempts: list[dict] = []
+    derived = triage(task.title, suggest_context(db, user_id), attempt_log=attempts)
     if derived is None:
         raise HTTPException(
             status_code=503, detail="The engine did not return a first step"
@@ -307,6 +320,7 @@ def derive_step(
     task.first_micro_step = derived["first_micro_step"]
     task.estimated_minutes = derived["estimated_minutes"]
     task.energy_required = derived["energy_required"]
+    log_model_attempts(db, user_id, attempts)
     db.commit()
     return task_out(task)
 

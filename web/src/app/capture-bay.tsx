@@ -7,6 +7,10 @@ type Props = {
   apiUrl: string;
   phone: string;
   live: boolean;
+  /** The task on screen now, so a stale receipt cannot outlive it. */
+  activeId: number | null;
+  /** A dump to start with — used by the judge's /demo hand-off. */
+  prefill?: string;
 };
 
 type Filed = {
@@ -50,19 +54,51 @@ const COUNT_FROM = 1200;
  * line. The textarea grows to ~280px and then scrolls, so a long message
  * never pushes the card off screen.
  */
-export default function CaptureBay({ apiUrl, phone, live }: Props) {
+export default function CaptureBay({
+  apiUrl,
+  phone,
+  live,
+  activeId,
+  prefill = "",
+}: Props) {
   const router = useRouter();
   const areaRef = useRef<HTMLTextAreaElement>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(prefill);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filed, setFiled] = useState<Filed | null>(() => lastFiled);
+  // Extraction is a 10–15s model call on a long dump. A spinner alone
+  // looks frozen, so the surface counts the seconds out loud.
+  const [elapsed, setElapsed] = useState(0);
 
   // Coming back from a remount after filing: put the caret back in the
-  // composer so the next dump can be typed immediately.
+  // composer so the next dump can be typed immediately. The demo hand-off
+  // arrives with text already in the box, so the caret goes to the end.
   useEffect(() => {
-    if (lastFiled) areaRef.current?.focus();
-  }, []);
+    if (lastFiled || prefill) areaRef.current?.focus();
+  }, [prefill]);
+
+  useEffect(() => {
+    if (!pending) {
+      setElapsed(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 500);
+    return () => clearInterval(timer);
+  }, [pending]);
+
+  // A receipt is a claim about what is on screen. Once the surface moves
+  // on — DONE promoted the next task — that claim is no longer true, so
+  // it goes away rather than sitting there contradicting the card.
+  useEffect(() => {
+    if (lastFiled?.activated && lastFiled.id !== activeId) {
+      lastFiled = null;
+      setFiled(null);
+    }
+  }, [activeId]);
 
   // Auto-grow: measure the content, cap at MAX_HEIGHT, then let it scroll.
   // Height is reset first so the box can also shrink after a send.
@@ -95,14 +131,15 @@ export default function CaptureBay({ apiUrl, phone, live }: Props) {
         // One field: the dump. The engine decides how many tasks are in it
         // and which one is shown first.
         body: JSON.stringify({ dump: text.trim() }),
-        // Extraction is a model call over a long message, so this is slower
-        // than an insert. Still bounded — no infinite spinner.
-        signal: AbortSignal.timeout(45000),
+        // Extraction is a model call over a long message. Worst case is
+        // two provider timeouts back to back (~40s), so the ceiling is
+        // generous — but still bounded, and the surface counts seconds.
+        signal: AbortSignal.timeout(90000),
       });
       if (res.status === 503) {
         // Nothing was filed. Say so, and keep the dump exactly where it is.
         setError(
-          "NOTHING FILED — THE ENGINE COULD NOT READ THIS. YOUR DUMP IS STILL HERE.",
+          "NOTHING FILED — THE ENGINE COULD NOT READ THIS. YOUR DUMP IS STILL HERE. PRESS SEND TO RETRY.",
         );
         return;
       }
@@ -127,7 +164,7 @@ export default function CaptureBay({ apiUrl, phone, live }: Props) {
       areaRef.current?.focus();
     } catch {
       setError(
-        "NOTHING FILED — THE ENGINE DID NOT ANSWER. YOUR DUMP IS STILL HERE.",
+        "NOTHING FILED — THE ENGINE DID NOT ANSWER. YOUR DUMP IS STILL HERE. PRESS SEND TO RETRY.",
       );
     } finally {
       setPending(false);
@@ -190,7 +227,7 @@ export default function CaptureBay({ apiUrl, phone, live }: Props) {
               &#8627;
             </span>
             <span className="composer-hint mono">
-              {pending ? "EXTRACTING" : "SHIFT+↵ NEW LINE"}
+              {pending ? `EXTRACTING · ${elapsed}S` : "SHIFT+↵ NEW LINE"}
             </span>
             {text.length > COUNT_FROM && (
               <span className="composer-count mono" aria-live="polite">

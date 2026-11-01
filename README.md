@@ -1,141 +1,224 @@
-# 1Thing — One Physical Next Step, Everywhere
+# 1Thing — One Physical Next Step
 
-> **Meta Global AI Developer Hackathon submission — Indie Developer track.**
-> Public repository: [KingKharid/1Thing-Meta-AI](https://github.com/KingKharid/1Thing-Meta-AI)
+> **Meta Global AI Developer Hackathon — Indie Developer track.**
+> Repo: [KingKharid/1Thing-Meta-AI](https://github.com/KingKharid/1Thing-Meta-AI)
+> Demo: `<!-- TODO: replace with the deployed Vercel URL -->` · Video: `<!-- TODO: replace with the submission video -->`
 
-1Thing is an omnipresent, voice-first multimodal executive gatekeeper for ADHD adults,
-overwhelmed founders, and chronic procrastinators. Raw multimodal chaos — WhatsApp voice
-notes, whiteboard snapshots, camera uploads, share sheets, brain dumps — enters the
-ingestion layer, and the multi-cloud AI core returns **strictly ONE physical micro-action
-item** across every surface (watch, lock screen, phone, WhatsApp, web sanctuary), while
-the reserve backlog stays completely invisible.
+Every productivity app shows you the mountain. 1Thing refuses.
 
-**Core invariant:** *"Never show the mountain. One physical next step, everywhere."*
+You dump a week of chaos into one message — typed, spoken, or photographed.
+The model reads all of it, files every distinct task into a hidden reserve, and
+puts **exactly one physical next step** on screen. Press DONE and the next one
+appears, in the order the model chose. You never see the list.
 
-Full engineering specification: [`SPEC.md`](./SPEC.md).
+**Core invariant:** *"Never show the mountain. One physical next step."*
 
-## Monorepo Layout
+---
+
+## Try it
+
+1. Open the demo link above and press **WATCH A WEEK BECOME ONE**.
+2. The composer arrives preloaded with a messy ten-line dump. Press **SEND**.
+3. Nine things are filed, one is shown. Press **DONE** — the next one appears.
+
+There is no sign-up and no task list. `/demo` resets only the demo identity.
+
+---
+
+## How the model decides
+
+`backend/app/services/triage.py` is the only place that asks a model for an
+order. A dump is not a task, so `extract()` returns **every** distinct thing it
+finds, ordered by what this person should do first given the hour, their
+available minutes, and their energy:
 
 ```text
-1Thing-Meta-AI/
-├── backend/app/        # FastAPI executive core (main.py, meta_client.py)
-├── web/src/app/        # Next.js sanctuary, demo, portal, admin
-├── mobile/             # Expo single-screen focus interface
-├── watch/              # watchOS (SwiftUI) + Wear OS (Compose) apps
-└── infra/              # Modal serverless media worker
+"ok so this week is a mess…"          ┌─ 1. Call dentist about painful crown   ← shown
+  + 9 more loose ends        ────────▶│  2. Send overdue venue deposit          ┐
+                                      │  3. Order Mom's birthday gift           │ 8 more,
+                                      │  …                                      ┘ hidden
+                                      └─ filed in the model's order, never listed
 ```
 
-## Multi-Cloud Architecture
+- Extraction is ordered, de-duplicated, and capped at 20 tasks per dump.
+- Every task is persisted; only the head is activated.
+- A dump **never yanks** a task you are already mid-step on. The new head waits
+  in reserve behind it (Invariant 1).
+- If both providers fail, a verbatim heuristic files your own words rather than
+  losing the week. `step_source` tells the surface which of the three wrote the
+  step: `user`, `engine`, `heuristic`, or `none`.
 
-Workloads are distributed across specialized inference partners so high-value tokens are
-preserved exclusively for core reasoning and live demos, while heavy media handling is
-offloaded to Modal serverless workers.
+**Provider order** (`PRIMARY_ENGINE`, default `baseten`):
+
+1. `meta-models/muse-spark-open-1026` on Baseten — open weights, and the
+   open-weights prize track.
+2. `muse-spark-1.3` on the Meta Model API — failover.
+3. Verbatim heuristic — last resort, never an invented step.
+
+Per-provider attempts are metered into the Admin LLMOps plane.
+
+---
+
+## Surfaces
+
+| Surface | State | Notes |
+| :--- | :--- | :--- |
+| **Web sanctuary** (`web/`) | **Runs** | Next.js 14, the composer, the focus card, `/demo`, `/admin` |
+| **WhatsApp** (`backend/app/main.py`) | **Runs** | Text, voice notes, photos, DONE/SKIP buttons |
+| **Mobile** (`mobile/`) | **Runs** | Expo single-screen focus card + one multiline dump sheet |
+| **watchOS** (`watch/watchos/`) | **Source only** | SwiftUI view + complication; no `.xcodeproj`, not built |
+| **Lock-screen widget** (`watch/ios-widget/`) | **Source only** | WidgetKit source; not built |
+| **Wear OS** (`watch/wearos/`) | **Not built** | Empty placeholder |
+
+Media path: WhatsApp voice note or photo → Graph API download → Modal worker
+(FFmpeg → 16 kHz WAV, Pillow → 1568 px JPEG) → Meta `/v1/responses` with
+`muse-wonder-1.0` → transcript → the normal text pipeline.
+
+> The OpenAI-compatible `/audio/transcriptions` and `/media/segmentation` routes
+> return 404 on the Meta Model API. `/v1/responses` with an `input_audio` or
+> `input_image` part is the route that answers; `muse-voice-transcribe-1.0` is
+> listed by `GET /models` but is not routable there. This is verified against
+> the live endpoint, not assumed.
+
+---
+
+## Architecture
 
 ```text
-INGESTION (WhatsApp audio/text, camera snapshots)
+WhatsApp / web / mobile / watch
         │
         ▼
-MODAL SERVERLESS WORKER — audio normalization (FFmpeg), image resize/compress
+FastAPI executive core  ──  single-active invariant guard
         │
-        ├──────────────────────┴──────────────────────┐
-        ▼                                             ▼
-META MODEL API ($150)                    BASETEN PARTNER ($100 + 2M TPM)
-- Muse Voice Transcribe                   - meta-models/muse-spark-open-1026
-- SAM 3.1 & Muse Image                      (open-weights reasoning engine)
-- Muse Spark 1.3 / Wonder
-        │                                             │
-        └──────────────────────┬──────────────────────┘
-                               ▼
-        SINGLE-ACTIVE INVARIANT ENGINE (FastAPI)
-        Strictly 1 active task per user
+        ├── Baseten  meta-models/muse-spark-open-1026   (primary, open weights)
+        ├── Meta     muse-spark-1.3                     (failover)
+        ├── Meta     muse-wonder-1.0                    (voice + vision, /responses)
+        └── Modal    FFmpeg / Pillow normalization
+        │
+        ▼
+PostgreSQL (production) · SQLite (local)
 ```
 
-| Provider | Credit Pool | Role | Models & Endpoints |
-| :--- | :--- | :--- | :--- |
-| **Meta Model API** | $150 | Core hosted intelligence & transcription | `muse-voice-transcribe-1.0`, `sam-3.1`, `muse-spark-1.3`, `muse-wonder-1.0` |
-| **Baseten** | $100 + 2M TPM | Open-weights reasoning engine & bonus eligibility | `meta-models/muse-spark-open-1026` via `https://inference.baseten.co/v1` |
-| **Modal** | $30/mo free tier | Async media pre-processing | `infra/modal_worker.py` (FFmpeg audio, image compression) |
+---
 
-## Design System — Warm Industrial Minimalism
-
-No cookie-cutter SaaS aesthetics: no purple gradients, no generic AI cards. Every
-surface (web sanctuary, admin control room, mobile, watch, lock screen, widgets)
-follows these tokens:
-
-| Token | Value |
-| :--- | :--- |
-| Background (Erebus) | `#0C0D0E` |
-| Surface / Containers (Carbon) | `#16181A` |
-| Typography / Primary Text (Bone) | `#F9F8F6` |
-| Accent / Active Focus (Focus Amber) | `#F59E0B` |
-| Completion / Success (Momentum Emerald) | `#10B981` |
-| Structural Borders | `1px solid rgba(249, 248, 246, 0.08)` |
-
-- **Typography:** `JetBrains Mono` for micro-labels, data readouts, status codes, and
-  timestamps; `Geist` / `SF Pro` for body, headers, and UI copy.
-- **Geometry:** flat surfaces, structural paper grid, stark 1px borders, zero
-  border-radius pills or soft shadows; generous 24–32px negative space.
-- **Feedback:** instantaneous 50ms tactile response on every state transition
-  (Done, Skip, Chunk).
-
-## Quickstart (Backend)
+## Quickstart
 
 ```bash
+# backend
 python -m venv .venv
-.venv\Scripts\activate  # Windows; use source .venv/bin/activate on macOS/Linux
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
 pip install -r backend/requirements.txt
-cd backend
-uvicorn app.main:app --reload  # serves on http://localhost:8000
+cp .env.example .env              # fill in the keys
+cd backend && uvicorn app.main:app --reload     # :8000
+
+# web
+cd web && npm install && npm run dev            # :3000
 ```
 
-Required environment variables: `MODEL_API_KEY`, `BASETEN_API_KEY`,
-`WHATSAPP_VERIFY_TOKEN`. See `backend/app/meta_client.py` for the full client.
-Optional: `DATABASE_URL` (defaults to local SQLite; use
-`postgresql+psycopg://...` in production).
+`web/.env.local` needs `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_PHONE_NUMBER`, and a
+server-side `ADMIN_API_KEY` (never `NEXT_PUBLIC_`).
+
+### Tests
 
 ```bash
-cd backend
-../.venv/Scripts/python -m pytest tests -v  # invariant suite
+cd backend && python -m pytest -q      # 134 passed
+cd web && npx tsc --noEmit             # clean
 ```
 
-## Quickstart (Web Sanctuary)
+The suite never reaches a provider: every network seam is patched, so it runs
+offline and in CI (`.github/workflows/ci.yml`).
+
+---
+
+## API
+
+User endpoints take `X-Phone-Number` (MVP identity seam — see "Not built").
+Operator endpoints take `X-Admin-Key`.
+
+| Method & Path | Auth | Purpose |
+| :--- | :--- | :--- |
+| `GET /api/v1/focus` | phone | Active task + reserve **count** only |
+| `POST /api/v1/tasks` | phone | `{ "dump": "…" }` (≤ 8000 chars) or `{ "title": "…" }` |
+| `POST /api/v1/tasks/{id}/derive` | phone | Re-run triage for a task with no step |
+| `POST /api/v1/tasks/{id}/complete` | phone | Idempotent completion, surfaces the next |
+| `POST /api/v1/tasks/{id}/skip?mode=reserve\|archive` | phone | Park or retire |
+| `POST /api/v1/demo/reset?mode=task\|dump` | none | Reset **only** `DEMO_PHONE` |
+| `GET /api/v1/telemetry` | admin | Six-plane control room |
+| `GET /api/v1/health` | none | Liveness |
+| `GET/POST /webhook` | Meta | WhatsApp verify + inbound |
+
+`POST /api/v1/tasks` returns `filed_count`, `stashed_count`, `activated`, and
+`step_source`, so a surface can report a batch honestly instead of claiming one
+task.
+
+---
+
+## Invariants
+
+| # | Invariant | State |
+| :--- | :--- | :--- |
+| 1 | Single active task per user | **Enforced** — service guard + tests |
+| 2 | Clients see a reserve count, never titles | **Enforced** |
+| 3 | No overdue state; times are soft pills | **Partial** — no due dates modelled |
+| 4 | Midnight sweep archives served work silently | **Runs** — `RUN_SCHEDULER=1` |
+| 5 | One nudge after 180 stalled minutes, then silence | **Runs** — same scheduler |
+| 6 | Exactly-once, idempotent completion | **Enforced** across web, mobile, WhatsApp |
+| 7 | No passwords; phone OTP only | **Not built** — header identity is the MVP seam |
+
+---
+
+## Deploy
+
+**Backend** — `Dockerfile` + `render.yaml` (web service + managed Postgres 16):
 
 ```bash
-cd web
-npm install
-npm run dev  # serves on http://localhost:3000
+# Render -> New -> Blueprint -> point at this repo
+# set MODEL_API_KEY, BASETEN_API_KEY, MODAL_WORKER_URL, ALLOWED_ORIGINS
 ```
 
-Set `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:8000`) to light the views
-with live backend data; without it the sanctuary renders offline fallback
-content. `/admin` hosts the six-plane control room.
+**Web** — `web/vercel.json`; set `NEXT_PUBLIC_API_URL` to the Render URL and
+`ADMIN_API_KEY` (server-side) to the same value as the backend.
 
-## API Surface
+**Modal** — `modal deploy infra/modal_worker.py`, then set `MODAL_WORKER_URL`.
 
-Identity header for user endpoints: `X-Phone-Number` (MVP seam for phone-OTP
-sessions). Reserve payloads expose the active task plus a count only.
+Production uses PostgreSQL via `DATABASE_URL`; SQLite is local-dev only and is
+not durable on ephemeral hosts.
 
-| Method & Path | Purpose |
-| :--- | :--- |
-| `GET /api/v1/focus` | Active task + hidden reserve count |
-| `POST /api/v1/tasks/{id}/complete` | Idempotent completion, surfaces next queued task |
-| `POST /api/v1/tasks/{id}/skip?mode=reserve\|archive` | Skip back to reserve (default) or archive |
-| `GET /api/v1/telemetry` | Six-plane control-room stats (no auth) |
-| `GET /api/v1/health` | Engine status |
+---
 
-## Companion Scaffolds
+## What is not built
 
-- `mobile/` — Expo focus interface (`App.js` + `FocusCard` + ingestion dock).
-  Runs against the same API via `EXPO_PUBLIC_API_URL`.
-- `watch/watchos/` — SwiftUI focus view + 16-char WidgetKit complication
-  skeleton; companion sync phase wires `URLSession` to `/api/v1/focus`.
+Stated plainly, because a judge should be able to trust the rest of this page:
 
-## Product Invariants
+- **Phone OTP / real auth.** `X-Phone-Number` is a spoofable header, documented
+  as the MVP seam. Rate limiting is in-process (per worker), not distributed.
+- **Wear OS.** Empty placeholder. watchOS and the lock-screen widget are source
+  only — there is no `.xcodeproj` in the repo.
+- **Billing.** No Stripe, no subscriptions. The Billing plane says
+  `NOT CONNECTED`.
+- **WebSockets / Redis.** Completion is idempotent over HTTP; there is no push
+  fan-out and no Redis.
+- **`/portal`.** Does not exist.
+- **Media metering.** Voice/vision calls are not counted in the LLMOps plane
+  (the row says `UNMETERED`).
+- **WhatsApp credentials.** The webhook handshake is live (correct token
+  echoes `hub.challenge`, wrong token 403) and inbound text runs the full
+  pipeline. `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are not
+  configured in this environment, so an inbound voice note stops honestly at
+  the Graph download and the user gets "I could not read that one." The media
+  path itself (Graph bytes, Modal normalize, Meta `/v1/responses`) is
+  exercised end-to-end with real audio and image bytes, not mocked.
 
-1. Single active task per user, enforced at database and service layer.
-2. Clients see the active task plus a reserve *count* — never reserve titles.
-3. No overdue state; scheduled times are soft pills.
-4. Midnight sweep archives served/skipped work silently.
-5. One nudge after 180 stalled minutes, then silence.
-6. Exactly-once, idempotent completion fanning out over WebSockets.
-7. No passwords — phone OTP only; zero-login Stripe billing.
+---
+
+## Design — Warm Industrial Minimalism
+
+Erebus `#0C0D0E` · Carbon `#16181A` · Bone `#F9F8F6` · Focus Amber `#F59E0B` ·
+Momentum Emerald `#10B981`. 1px hairlines, zero radius, JetBrains Mono for
+labels and Geist/SF Pro for copy. Restrained motion; one living accent.
+
+---
+
+MIT licensed — see [`LICENSE`](./LICENSE). Original design document:
+[`SPEC.md`](./SPEC.md) (kept for history; the README is the source of truth for
+what exists).

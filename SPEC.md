@@ -1,4 +1,12 @@
 # 1Thing — Master Engineering & Architectural Specification
+
+> **Status note (Oct 2026):** this is the original design document, kept for
+> history. Several things described here are **not built** — Wear OS,
+> `/portal`, WebSockets, Redis, Stripe, phone OTP. The
+> [`README`](./README.md) is the source of truth for what exists, and its
+> "What is not built" section lists every gap. The judging weights in §7 were
+> recorded from the event page; the official rules document is login-gated.
+
 **Meta Global AI Developer Hackathon Submission Document**  
 **Track:** Indie Developer ($150K 1st Place Target)  
 **Bonus Prize Focus:** Best Build on Open Weights ($10,000) & Best Agentic Use-Case ($5,000)  

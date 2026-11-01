@@ -6,8 +6,25 @@
     "scheme": "onething",
     "orientation": "portrait",
     "backgroundColor": "#0C0D0E",
-    "plugins": [
-      "expo-asset"
-    ]
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0C0D0E"
+    },
+    "ios": {
+      "bundleIdentifier": "ai.onething.focus",
+      "supportsTablet": false,
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "ai.onething.focus",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0C0D0E"
+      }
+    },
+    "plugins": ["expo-asset"]
   }
 }

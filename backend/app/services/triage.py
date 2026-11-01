@@ -21,15 +21,23 @@ real.
 from __future__ import annotations
 
 import logging
+import os
 import re
 
 from app.meta_client import evaluate_single_task_baseten, evaluate_single_task_meta
+from app.models import InvariantLog
 
 log = logging.getLogger(__name__)
 
 MAX_TITLE_CHARS = 120
 MAX_STEP_CHARS = 160
 ENERGY_LEVELS = ("low", "medium", "high")
+
+# Open-weights-first: every extraction tries Meta's open model on Baseten
+# before the hosted API, so the hackathon's open-weights bonus rests on
+# the primary path rather than a failover nobody hits. Override with
+# PRIMARY_ENGINE=meta if the hosted model must lead instead.
+PRIMARY_ENGINE = os.getenv("PRIMARY_ENGINE", "baseten")
 
 # One dump is one sitting's worth of capture. Twenty is already more than
 # a person can hold in mind; beyond that the reserve stops being a
@@ -115,21 +123,29 @@ def _normalise(result: object, limit: int = MAX_TASKS_PER_DUMP) -> list[dict]:
 def extract(
     raw_dump: str,
     context: dict,
-    engine: str = "meta",
+    engine: str | None = None,
     limit: int = MAX_TASKS_PER_DUMP,
+    attempt_log: list | None = None,
 ) -> list[dict]:
     """Ask the model what is actually in this dump, in priority order.
 
-    Tries the requested engine, then the other configured provider, so a
+    Tries each provider in order and keeps the first usable answer, so a
     single provider outage does not leave the surface empty. Every failure
     mode — transport, timeout, malformed JSON, no usable step — yields an
     empty list rather than a fabricated action.
+
+    :param engine: ``"meta"`` or ``"baseten"`` — which provider goes
+        first. ``None`` follows :data:`PRIMARY_ENGINE` (open-weights
+        first by default).
+    :param attempt_log: optional list receiving one
+        ``{"provider": name, "ok": bool}`` dict per provider attempt,
+        for LLMOps metering via :func:`log_model_attempts`.
     """
     raw_dump = (raw_dump or "").strip()
     if not raw_dump:
         return []
 
-    order = ("baseten", "meta") if engine == "baseten" else ("meta", "baseten")
+    order = ("baseten", "meta") if (engine or PRIMARY_ENGINE) == "baseten" else ("meta", "baseten")
     for name in order:
         try:
             reply = (
@@ -139,9 +155,13 @@ def extract(
             )
         except Exception as exc:  # noqa: BLE001 - any provider failure is recoverable
             log.warning("triage via %s failed: %s", name, exc)
+            if attempt_log is not None:
+                attempt_log.append({"provider": name, "ok": False})
             continue
 
         tasks = _normalise(reply, limit=limit)
+        if attempt_log is not None:
+            attempt_log.append({"provider": name, "ok": bool(tasks)})
         if tasks:
             return tasks
         log.warning("triage via %s returned no usable task", name)
@@ -149,14 +169,40 @@ def extract(
     return []
 
 
-def triage(raw_dump: str, context: dict, engine: str = "meta") -> dict | None:
+def triage(
+    raw_dump: str,
+    context: dict,
+    engine: str | None = None,
+    attempt_log: list | None = None,
+) -> dict | None:
     """The one task to show right now, or ``None``.
 
     A thin wrapper for callers that only need the head of the queue —
     WhatsApp's reply, and deriving a step for an existing row.
     """
-    tasks = extract(raw_dump, context, engine=engine, limit=1)
+    tasks = extract(raw_dump, context, engine=engine, limit=1, attempt_log=attempt_log)
     return tasks[0] if tasks else None
+
+
+def log_model_attempts(db, user_id: int, attempts: list) -> None:
+    """Persist provider attempts for LLMOps metering.
+
+    One row per attempt (``baseten_ok``, ``meta_error``, …) so the
+    control room counts real traffic instead of reporting UNMETERED.
+    Flushes; the caller owns the commit.
+    """
+    for attempt in attempts or []:
+        provider = attempt.get("provider", "?")
+        ok = bool(attempt.get("ok"))
+        db.add(
+            InvariantLog(
+                user_id=user_id,
+                invariant="model_routing",
+                action=f"{provider}_{'ok' if ok else 'error'}",
+                detail=f"triage {provider} {'succeeded' if ok else 'failed'}",
+            )
+        )
+    db.flush()
 
 
 # ------------------------------------------------------- heuristic fallback
@@ -248,8 +294,9 @@ def fallback(raw_dump: str, limit: int = MAX_TASKS_PER_DUMP) -> list[dict]:
 def extract_or_fallback(
     raw_dump: str,
     context: dict,
-    engine: str = "meta",
+    engine: str | None = None,
     limit: int = MAX_TASKS_PER_DUMP,
+    attempt_log: list | None = None,
 ) -> tuple[list[dict], bool]:
     """AI extraction with verbatim heuristic fallback.
 
@@ -259,7 +306,7 @@ def extract_or_fallback(
     derive endpoint deliberately keeps strict :func:`triage` — a step
     derived later must be real, never a restatement.
     """
-    tasks = extract(raw_dump, context, engine=engine, limit=limit)
+    tasks = extract(raw_dump, context, engine=engine, limit=limit, attempt_log=attempt_log)
     if tasks:
         return tasks, False
     return fallback(raw_dump, limit=limit), True

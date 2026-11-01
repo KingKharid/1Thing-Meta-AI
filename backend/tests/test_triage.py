@@ -198,7 +198,11 @@ def test_extract_returns_the_whole_list(monkeypatch):
         triage_module, "evaluate_single_task_meta", lambda *a, **k: reply
     )
 
-    assert [t["title"] for t in extract("a week of thoughts", CONTEXT)] == [
+    # Pinned to meta: this test is about list shape, not provider order,
+    # and must never touch the network.
+    assert [
+        t["title"] for t in extract("a week of thoughts", CONTEXT, engine="meta")
+    ] == [
         "First",
         "Second",
     ]
@@ -277,6 +281,13 @@ def test_fallback_empty_for_blank():
 
 
 def test_extract_or_fallback_prefers_the_model(monkeypatch):
+    # The default engine order is open-weights first, so the hosted model
+    # only wins when the primary is down. Stub the primary rather than
+    # letting the suite reach a real provider.
+    def down(*args, **kwargs):
+        raise RuntimeError("baseten unavailable")
+
+    monkeypatch.setattr(triage_module, "evaluate_single_task_baseten", down)
     monkeypatch.setattr(
         triage_module, "evaluate_single_task_meta", lambda *a, **k: _reply()
     )
@@ -297,3 +308,65 @@ def test_extract_or_fallback_files_verbatim_when_providers_fail(monkeypatch):
     )
     assert used_fallback is True
     assert [t["title"] for t in tasks] == ["Call the dentist", "Water the plants"]
+
+
+# ------------------------------------------------------- provider order
+
+
+def test_extract_defaults_to_open_weights_first(monkeypatch):
+    """Both providers healthy: the open-weights answer wins by default."""
+    monkeypatch.setattr(
+        triage_module, "evaluate_single_task_meta", lambda *a, **k: _reply()
+    )
+    monkeypatch.setattr(
+        triage_module,
+        "evaluate_single_task_baseten",
+        lambda *a, **k: _reply(title="Baseten pick"),
+    )
+
+    assert extract("a week of thoughts", CONTEXT)[0]["title"] == "Baseten pick"
+
+
+def test_extract_engine_override_stays_meta_first(monkeypatch):
+    monkeypatch.setattr(
+        triage_module, "evaluate_single_task_meta", lambda *a, **k: _reply()
+    )
+    monkeypatch.setattr(
+        triage_module,
+        "evaluate_single_task_baseten",
+        lambda *a, **k: _reply(title="Baseten pick"),
+    )
+
+    tasks = extract("a week of thoughts", CONTEXT, engine="meta")
+    assert tasks[0]["title"] == "Go to church"
+
+
+def test_extract_records_attempts_for_metering(monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("meta down")
+
+    monkeypatch.setattr(triage_module, "evaluate_single_task_meta", boom)
+    monkeypatch.setattr(
+        triage_module, "evaluate_single_task_baseten", lambda *a, **k: _reply()
+    )
+
+    log: list = []
+    tasks = extract("a week of thoughts", CONTEXT, attempt_log=log)
+
+    assert tasks[0]["title"] == "Go to church"
+    assert log == [{"provider": "baseten", "ok": True}]
+
+
+def test_extract_logs_failed_attempts_before_fallback(monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(triage_module, "evaluate_single_task_meta", boom)
+    monkeypatch.setattr(triage_module, "evaluate_single_task_baseten", boom)
+
+    log: list = []
+    assert extract("a week of thoughts", CONTEXT, attempt_log=log) == []
+    assert log == [
+        {"provider": "baseten", "ok": False},
+        {"provider": "meta", "ok": False},
+    ]

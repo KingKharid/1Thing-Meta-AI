@@ -9,3 +9,5 @@ node_modules/
 .expo/
 *.log
 *.tsbuildinfo
+.env.local
+*.env.local

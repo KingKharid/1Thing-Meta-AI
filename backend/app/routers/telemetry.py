@@ -15,8 +15,13 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.models import InvariantLog, Task, TaskStatus, User, engine, get_db
+from app.services.auth import require_admin
+from app.services.ratelimit import limiter
+from app.services.triage import PRIMARY_ENGINE
 
-router = APIRouter(prefix="/api/v1", tags=["telemetry"])
+router = APIRouter(
+    prefix="/api/v1", tags=["telemetry"], dependencies=[Depends(require_admin)]
+)
 
 _STARTED_AT = datetime.now(timezone.utc)
 
@@ -112,6 +117,26 @@ def read_telemetry(db: Session = Depends(get_db)):
         .scalar()
         or 0
     )
+    baseten_calls_day = (
+        db.query(func.count(InvariantLog.id))
+        .filter(
+            InvariantLog.invariant == "model_routing",
+            InvariantLog.action == "baseten_ok",
+            InvariantLog.created_at >= day_ago,
+        )
+        .scalar()
+        or 0
+    )
+    meta_calls_day = (
+        db.query(func.count(InvariantLog.id))
+        .filter(
+            InvariantLog.invariant == "model_routing",
+            InvariantLog.action == "meta_ok",
+            InvariantLog.created_at >= day_ago,
+        )
+        .scalar()
+        or 0
+    )
     users_total = db.query(func.count(User.id)).scalar() or 0
     active_users_week = (
         db.query(func.count(func.distinct(Task.user_id)))
@@ -130,6 +155,14 @@ def read_telemetry(db: Session = Depends(get_db)):
     meta_key = "CONFIGURED" if os.getenv("MODEL_API_KEY") else "MISSING"
     baseten_key = "CONFIGURED" if os.getenv("BASETEN_API_KEY") else "MISSING"
     wa_token = "SET" if os.getenv("WHATSAPP_VERIFY_TOKEN") else "DEFAULT"
+    wa_access = "SET" if os.getenv("WHATSAPP_ACCESS_TOKEN") else "MISSING"
+    wa_phone = "SET" if os.getenv("WHATSAPP_PHONE_NUMBER_ID") else "MISSING"
+    scheduler_on = (os.getenv("RUN_SCHEDULER") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    media_model = os.getenv("META_VOICE_MODEL", "muse-wonder-1.0")
 
     return TelemetryOut(
         planes=[
@@ -142,6 +175,11 @@ def read_telemetry(db: Session = Depends(get_db)):
                     PlaneRow(key="DB_LATENCY", value=latency),
                     PlaneRow(key="DB_POOL", value=_pool_status()),
                     PlaneRow(key="UPTIME", value=_uptime(now)),
+                    PlaneRow(
+                        key="SCHEDULER",
+                        value="RUNNING" if scheduler_on else "OFF",
+                        tone="emerald" if scheduler_on else "amber",
+                    ),
                 ],
             ),
             Plane(
@@ -149,6 +187,11 @@ def read_telemetry(db: Session = Depends(get_db)):
                 title="02 // LLMOPS PLANE",
                 ok=True,
                 rows=[
+                    PlaneRow(
+                        key="PRIMARY_ENGINE",
+                        value=f"{PRIMARY_ENGINE.upper()} // OPEN WEIGHTS",
+                        tone="emerald" if PRIMARY_ENGINE == "baseten" else None,
+                    ),
                     PlaneRow(
                         key="META_API_KEY",
                         value=meta_key,
@@ -159,7 +202,13 @@ def read_telemetry(db: Session = Depends(get_db)):
                         value=baseten_key,
                         tone=None if baseten_key == "CONFIGURED" else "amber",
                     ),
-                    PlaneRow(key="TOKEN_METERING", value="PHASE-5"),
+                    PlaneRow(
+                        key="BASETEN_CALLS_24H",
+                        value=str(baseten_calls_day),
+                        tone="emerald" if baseten_calls_day else None,
+                    ),
+                    PlaneRow(key="META_CALLS_24H", value=str(meta_calls_day)),
+                    PlaneRow(key="MEDIA_MODEL", value=media_model),
                     PlaneRow(key="TRANSCRIBE_CALLS", value="UNMETERED"),
                 ],
             ),
@@ -204,9 +253,28 @@ def read_telemetry(db: Session = Depends(get_db)):
                 ok=True,
                 rows=[
                     PlaneRow(key="WA_VERIFY_TOKEN", value=wa_token),
-                    PlaneRow(key="PHONE_OTP", value="PLANNED"),
-                    PlaneRow(key="RATE_LIMITS", value="0 TRIPPED"),
-                    PlaneRow(key="AUTH_MODEL", value="HEADER-MVP"),
+                    PlaneRow(
+                        key="WA_ACCESS_TOKEN",
+                        value=wa_access,
+                        tone=None if wa_access == "SET" else "amber",
+                    ),
+                    PlaneRow(
+                        key="WA_PHONE_ID",
+                        value=wa_phone,
+                        tone=None if wa_phone == "SET" else "amber",
+                    ),
+                    PlaneRow(key="ADMIN_AUTH", value="X-ADMIN-KEY"),
+                    PlaneRow(key="PHONE_OTP", value="NOT BUILT", tone="amber"),
+                    PlaneRow(
+                        key="RATE_LIMITS",
+                        value=(
+                            "OFF"
+                            if limiter.limit <= 0
+                            else f"{limiter.limit}/MIN"
+                        ),
+                        tone=None if limiter.limit > 0 else "amber",
+                    ),
+                    PlaneRow(key="AUTH_MODEL", value="HEADER-MVP", tone="amber"),
                 ],
             ),
         ]

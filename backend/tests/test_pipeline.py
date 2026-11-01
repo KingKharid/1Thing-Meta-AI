@@ -49,7 +49,7 @@ def pipeline(monkeypatch):
 def test_pipeline_persists_the_derived_step(pipeline, monkeypatch):
     seen_context: list[dict] = []
 
-    def fake_extract(raw_text, context, engine="meta", limit=20):
+    def fake_extract(raw_text, context, engine="meta", limit=20, attempt_log=None):
         seen_context.append(context)
         return [DERIVED], False
 

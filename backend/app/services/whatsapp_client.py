@@ -69,6 +69,42 @@ def _recipient(to: str) -> str:
     return (to or "").strip()
 
 
+def download_media(media_id: str) -> tuple[bytes, str] | None:
+    """Download a WhatsApp media object. Returns ``(bytes, mime)`` or None.
+
+    Two Graph calls: metadata lookup for the temporary URL, then the
+    byte download. Any failure returns None — the caller replies
+    honestly instead of crashing the webhook.
+    """
+    token, _, version = _credentials()
+    media_id = (media_id or "").strip()
+    if not (token and media_id):
+        return None
+    try:
+        meta = requests.get(
+            f"https://graph.facebook.com/{version}/{media_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=_TIMEOUT_SECONDS,
+        )
+        if meta.status_code >= 400:
+            return None
+        info = meta.json()
+        url, mime = info.get("url", ""), info.get("mime_type", "application/octet-stream")
+        if not url:
+            return None
+        blob = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        if blob.status_code >= 400:
+            return None
+        return blob.content, mime
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning("WhatsApp media download failed: %s", exc)
+        return None
+
+
 def send_text(to: str, body: str) -> bool:
     """Send a plain-text WhatsApp message. Returns True when accepted."""
     recipient = _recipient(to)
@@ -128,4 +164,4 @@ def send_focus_message(to: str, body: str, task_id: int) -> bool:
     return send_text(recipient, body)
 
 
-__all__ = ["is_configured", "send_focus_message", "send_text"]
+__all__ = ["download_media", "is_configured", "send_focus_message", "send_text"]

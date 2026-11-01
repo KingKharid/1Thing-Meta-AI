@@ -32,10 +32,13 @@ function localStamp(): string {
  */
 async function getTelemetry(): Promise<Telemetry> {
   const base = process.env.NEXT_PUBLIC_API_URL;
+  // Server-side only: the admin key never reaches the browser bundle.
+  const adminKey = process.env.ADMIN_API_KEY;
   if (!base) return { planes: OFFLINE_PLANES, live: false, checkedAt: localStamp() };
   try {
     const res = await fetch(`${base}/api/v1/telemetry`, {
       cache: "no-store",
+      headers: adminKey ? { "X-Admin-Key": adminKey } : {},
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) {

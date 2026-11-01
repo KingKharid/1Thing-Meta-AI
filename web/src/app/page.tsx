@@ -1,5 +1,6 @@
 import CaptureBay from "./capture-bay";
 import DeriveStep from "./derive-step";
+import { DEMO_DUMP } from "./demo-dump";
 import FocusActions from "./focus-actions";
 import { apiConfig, getFocus } from "./focus-lib";
 
@@ -28,10 +29,17 @@ function ClockIcon() {
   );
 }
 
-export default async function FocusPage() {
+export default async function FocusPage({
+  searchParams,
+}: {
+  searchParams?: { demo?: string };
+}) {
   const focus = await getFocus();
   const { base, phone, whatsapp } = apiConfig();
   const task = focus.task;
+  // The judge's entry point hands over with the week-long dump already in
+  // the composer, so the first press of SEND is the demo.
+  const prefill = searchParams?.demo === "dump" ? DEMO_DUMP : "";
   const stamp = new Date(focus.updatedAt).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -181,7 +189,13 @@ export default async function FocusPage() {
               surface flips the card, and the confirmation must survive
               that swap. */}
           {focus.mode !== "error" && (
-            <CaptureBay apiUrl={base} phone={phone} live={focus.live} />
+            <CaptureBay
+              apiUrl={base}
+              phone={phone}
+              live={focus.live}
+              activeId={task?.id ?? null}
+              prefill={prefill}
+            />
           )}
         </div>
       </main>
@@ -191,6 +205,9 @@ export default async function FocusPage() {
           <i className="foot-dot" aria-hidden="true" />
           NEVER SHOW THE MOUNTAIN
         </span>
+        <a className="footbar-link mono" href="/demo">
+          DEMO <span aria-hidden="true">→</span>
+        </a>
         <a className="footbar-link mono" href="/admin">
           CONTROL ROOM <span aria-hidden="true">→</span>
         </a>

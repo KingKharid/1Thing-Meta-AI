@@ -1,5 +1,7 @@
 import os
 import json
+import threading
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, BackgroundTasks
@@ -7,29 +9,98 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.models import SessionLocal, Task, TaskStatus, get_or_create_user, init_db
+from app.routers import demo as demo_router
 from app.routers import focus as focus_router
 from app.routers import telemetry as telemetry_router
+from app.services import scheduler as scheduler_service
 from app.services import whatsapp_templates
+from app.services.media import MediaError, ingest_whatsapp_media
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
-from app.services.triage import extract_or_fallback
+from app.services.triage import extract_or_fallback, log_model_attempts
 from app.services.whatsapp_client import send_focus_message, send_text
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "one_thing_hackathon_verify_token_2026")
 
 
+def allowed_origins() -> list[str]:
+    """CORS origins from ``ALLOWED_ORIGINS`` (comma separated).
+
+    Defaults to the local dev pair only. ``*`` is still accepted, but
+    credentials are switched off when it is used — a wildcard origin with
+    credentials is invalid and dangerous.
+    """
+    raw = (os.getenv("ALLOWED_ORIGINS") or "").strip()
+    if not raw:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+    if raw == "*":
+        return ["*"]
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
+
+
+def scheduler_enabled() -> bool:
+    return (os.getenv("RUN_SCHEDULER") or "").strip().lower() in ("1", "true", "yes")
+
+
+def deliver_nudges(task_ids: list[int]) -> None:
+    """Send the single check-in for each stalled task (Invariant 5).
+
+    The scheduler decides; delivery lives here because it needs the
+    WhatsApp client. A delivery failure never stops the tick.
+    """
+    if not task_ids:
+        return
+    db: Session = SessionLocal()
+    try:
+        tasks = db.query(Task).filter(Task.id.in_(task_ids)).all()
+        rows = [
+            (task.id, task.user.phone_number, task.title, task.first_micro_step)
+            for task in tasks
+        ]
+    finally:
+        db.close()
+
+    for task_id, phone, title, step in rows:
+        body = (
+            f"Still on \u201c{title}\u201d?\n"
+            f"One small step: {step}\n"
+            "Reply DONE when it is handled."
+        )
+        try:
+            send_focus_message(phone, body, task_id)
+        except Exception as exc:  # pragma: no cover - defensive
+            print(f"nudge delivery failed for task {task_id}: {exc}")
+
+
+def _scheduler_loop() -> None:
+    """Tick forever; the loop is daemonised by the thread itself."""
+    while True:
+        try:
+            result = scheduler_service.run_once()
+            deliver_nudges(result.get("nudged", []))
+        except Exception as exc:  # pragma: no cover - defensive
+            print(f"scheduler tick failed: {exc}")
+        time.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    if scheduler_enabled():
+        thread = threading.Thread(
+            target=_scheduler_loop, name="1thing-scheduler", daemon=True
+        )
+        thread.start()
     yield
 
 
 app = FastAPI(title="1Thing Meta AI Executive Core", version="1.0.0", lifespan=lifespan)
 
+_origins = allowed_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials="*" not in _origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -39,6 +110,7 @@ invariant_guard = SingleActiveTaskGuard(demote_to=TaskStatus.QUEUED)
 
 app.include_router(focus_router.router)
 app.include_router(telemetry_router.router)
+app.include_router(demo_router.router)
 
 
 @app.get("/api/v1/health")
@@ -76,7 +148,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
                 if command:
                     background_tasks.add_task(handle_command, command, user_id, None)
                 else:
-                    background_tasks.add_task(handle_pipeline, text_content, "meta", user_id)
+                    background_tasks.add_task(handle_pipeline, text_content, user_id=user_id)
 
             elif kind == "interactive":
                 reply = (msg.get("interactive") or {}).get("button_reply") or {}
@@ -87,9 +159,9 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
                     background_tasks.add_task(handle_command, command, user_id, task_id)
 
             elif kind in ("audio", "image", "video", "document"):
-                # Media transcription lands with the Modal pipeline. Say so
-                # instead of dropping the message into silence.
-                background_tasks.add_task(handle_media, kind, user_id)
+                part = msg.get(kind) or {}
+                media_id = part.get("id", "") if isinstance(part, dict) else ""
+                background_tasks.add_task(handle_media, kind, user_id, media_id)
     except Exception as e:
         print(f"Webhook parse error: {e}")
     return {"status": "received"}
@@ -129,13 +201,24 @@ def _deliver_focus(user_id: str, body: str, task_id: int | None) -> bool:
     return send_focus_message(user_id, body, task_id)
 
 
-def handle_media(kind: str, user_id: str = "unknown") -> None:
-    """Honest reply for media the pipeline cannot read yet.
+def handle_media(kind: str, user_id: str = "unknown", media_id: str = "") -> dict:
+    """Voice notes and photos: Modal normalize -> Meta extract -> pipeline.
 
-    Voice notes and photos are ingested through the Modal media pipeline
-    in a later phase. Silence is the worst possible answer, so the user
-    gets a plain statement of what to do instead.
+    Anything else (video, files) — or any failure along the media path —
+    gets the honest reply. Media must never vanish into silence.
     """
+    if kind in ("audio", "image") and media_id:
+        try:
+            text = ingest_whatsapp_media(media_id, kind)
+        except MediaError as exc:
+            print(f"Media ingest failed ({kind}): {exc}")
+            _deliver(user_id, whatsapp_templates.error_reply())
+            return {}
+        if not (text or "").strip():
+            _deliver(user_id, whatsapp_templates.error_reply())
+            return {}
+        return handle_pipeline(text, user_id=user_id)
+
     labels = {
         "audio": "voice notes",
         "image": "photos",
@@ -148,9 +231,10 @@ def handle_media(kind: str, user_id: str = "unknown") -> None:
         f"I cannot open {label} yet.\n"
         "Send it as text and I will return one physical next step.",
     )
+    return {}
 
 
-def handle_pipeline(raw_text: str, engine: str = "meta", user_id: str = "unknown"):
+def handle_pipeline(raw_text: str, engine: str | None = None, user_id: str = "unknown"):
     # First contact is decided before the LLM call so the onboarding line
     # can ride along with the first real reply.
     db: Session = SessionLocal()
@@ -165,7 +249,10 @@ def handle_pipeline(raw_text: str, engine: str = "meta", user_id: str = "unknown
     finally:
         db.close()
 
-    tasks, _used_fallback = extract_or_fallback(raw_text, context, engine=engine)
+    attempts: list[dict] = []
+    tasks, _used_fallback = extract_or_fallback(
+        raw_text, context, engine=engine, attempt_log=attempts
+    )
     if not tasks:
         # Never leave the user in silence, and never invent a step.
         _deliver(user_id, whatsapp_templates.error_reply())
@@ -195,6 +282,7 @@ def handle_pipeline(raw_text: str, engine: str = "meta", user_id: str = "unknown
         db.flush()
 
         demoted = invariant_guard.activate_task(db, rows[0])
+        log_model_attempts(db, user_pk, attempts)
         db.commit()
         reserve_count = _reserve_count(db, user_pk)
         result["selected_task"] = _task_brief(rows[0])

@@ -14,6 +14,14 @@ from app.services.state import SingleActiveTaskGuard
 
 PHONE = "+15550001111"
 HEADERS = {"X-Phone-Number": PHONE}
+ADMIN_KEY = "test-admin-key"
+ADMIN_HEADERS = {"X-Admin-Key": ADMIN_KEY}
+
+
+@pytest.fixture(autouse=True)
+def admin_key(monkeypatch):
+    """Every test runs with a known admin key, so telemetry is reachable."""
+    monkeypatch.setenv("ADMIN_API_KEY", ADMIN_KEY)
 
 
 @pytest.fixture(autouse=True)
@@ -172,7 +180,7 @@ def test_skip_rejects_bad_mode_and_completed_tasks(client: TestClient):
 def test_telemetry_serves_six_planes(client: TestClient):
     seed_active_with_reserve(client, reserve=2)
 
-    res = client.get("/api/v1/telemetry")
+    res = client.get("/api/v1/telemetry", headers=ADMIN_HEADERS)
 
     assert res.status_code == 200
     planes = {plane["id"]: plane for plane in res.json()["planes"]}
@@ -594,3 +602,85 @@ def test_dump_falls_back_to_verbatim_filing(client: TestClient, monkeypatch):
     assert body["task"]["title"] == "Call the dentist about the crown"
     assert body["task"]["first_micro_step"] == "Call the dentist about the crown"
     assert body["queued_backlog_count"] == 1
+
+
+def test_dump_logs_provider_attempts_for_metering(client: TestClient, monkeypatch):
+    from app.models import InvariantLog
+    from app.services import triage as triage_module
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("meta down")
+
+    monkeypatch.setattr(triage_module, "evaluate_single_task_meta", boom)
+    monkeypatch.setattr(
+        triage_module,
+        "evaluate_single_task_baseten",
+        lambda *a, **k: {
+            "tasks": [
+                {
+                    "title": "T",
+                    "first_micro_step": "S",
+                    "estimated_minutes": 5,
+                    "energy_required": "low",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        focus_router, "extract_or_fallback", triage_module.extract_or_fallback
+    )
+
+    res = client.post("/api/v1/tasks", headers=HEADERS, json={"dump": "a thought"})
+    assert res.status_code == 201
+
+    db = client.testing_session()
+    try:
+        actions = sorted(
+            row.action
+            for row in db.query(InvariantLog)
+            .filter_by(invariant="model_routing")
+            .all()
+        )
+        assert actions == ["baseten_ok"]
+    finally:
+        db.close()
+
+
+def test_telemetry_counts_provider_calls(client: TestClient):
+    from app.models import InvariantLog, get_or_create_user
+
+    db = client.testing_session()
+    try:
+        user = get_or_create_user(db, phone_number=PHONE)
+        db.add_all(
+            [
+                InvariantLog(
+                    user_id=user.id,
+                    invariant="model_routing",
+                    action="baseten_ok",
+                    detail="triage baseten succeeded",
+                ),
+                InvariantLog(
+                    user_id=user.id,
+                    invariant="model_routing",
+                    action="baseten_ok",
+                    detail="triage baseten succeeded",
+                ),
+                InvariantLog(
+                    user_id=user.id,
+                    invariant="model_routing",
+                    action="meta_ok",
+                    detail="triage meta succeeded",
+                ),
+            ]
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    res = client.get("/api/v1/telemetry", headers=ADMIN_HEADERS)
+    assert res.status_code == 200
+    planes = {plane["id"]: plane for plane in res.json()["planes"]}
+    rows = {row["key"]: row["value"] for row in planes["llmops"]["rows"]}
+    assert rows["BASETEN_CALLS_24H"] == "2"
+    assert rows["META_CALLS_24H"] == "1"

@@ -19,10 +19,12 @@ owns the transaction.
 """
 
 from datetime import datetime, timedelta, timezone
+import threading
+import time
 
 from sqlalchemy.orm import Session
 
-from app.models import InvariantLog, Task, TaskStatus
+from app.models import InvariantLog, SessionLocal, Task, TaskStatus
 
 STALE_QUEUED_DAYS = 7
 STALL_MINUTES = 180
@@ -193,3 +195,45 @@ def stall_nudge_check(
             )
     db.flush()
     return {"nudged": nudged_ids, "silenced": silenced_ids}
+
+
+def run_once(*, now: datetime | None = None) -> dict:
+    """One scheduler tick: midnight sweep, then the stall check.
+
+    Returns the ids that moved plus the ids whose check-in the caller
+    should deliver. Notification delivery stays outside this module so
+    the decisions here remain pure and testable.
+    """
+    db: Session = SessionLocal()
+    try:
+        swept = midnight_sweep(db, now=now)
+        stalled = stall_nudge_check(db, now=now)
+        db.commit()
+        return {
+            "archived_served": swept["archived_served"],
+            "archived_stale": swept["archived_stale"],
+            "nudged": stalled["nudged"],
+            "silenced": stalled["silenced"],
+        }
+    finally:
+        db.close()
+
+
+def start_background_scheduler(interval_seconds: float = 60.0) -> threading.Thread:
+    """Start the tick loop on a daemon thread and return it.
+
+    Enabled by ``RUN_SCHEDULER=1`` in the app lifespan. A crash inside a
+    tick is logged and the loop continues: a scheduler that dies silently
+    would make Invariants 4 and 5 look alive when they are not.
+    """
+    def _loop() -> None:
+        while True:
+            try:
+                run_once()
+            except Exception as exc:  # pragma: no cover - defensive
+                print(f"scheduler tick failed: {exc}")
+            time.sleep(interval_seconds)
+
+    thread = threading.Thread(target=_loop, name="1thing-scheduler", daemon=True)
+    thread.start()
+    return thread
