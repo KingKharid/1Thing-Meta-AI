@@ -80,7 +80,7 @@ Show the reply: one step, with DONE / SKIP buttons.
 
 ### 2:15 – 2:40 — the proof underneath
 
-Cut to `/admin`.
+Cut to `/admin`. It asks for the operator key — type it, do not cut around it.
 
 > "Everything you just saw is metered. Baseten open weights is the primary
 > engine — that's `muse-spark-open-1026`, open weights, which is the other

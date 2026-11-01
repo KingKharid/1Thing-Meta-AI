@@ -1,3 +1,8 @@
+import { cookies } from "next/headers";
+
+import AdminGate from "./gate";
+import { ADMIN_COOKIE, isUnlocked } from "./session";
+
 type PlaneRow = { key: string; value: string; tone?: "amber" | "emerald" };
 type Plane = { id: string; title: string; ok: boolean; rows: PlaneRow[] };
 
@@ -61,7 +66,15 @@ function splitTitle(title: string, index: number) {
     : { code: String(index + 1).padStart(2, "0"), name: title };
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
+  if (!isUnlocked(cookies().get(ADMIN_COOKIE)?.value)) {
+    return <AdminGate failed={searchParams?.error === "1"} />;
+  }
+
   const { planes, live, checkedAt } = await getTelemetry();
   const nominal = planes.filter((plane) => plane.ok).length;
   const attention = planes.length - nominal;

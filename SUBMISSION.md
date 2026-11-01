@@ -88,7 +88,7 @@ Render · Vercel · GitHub Actions
 ## Links
 
 - Repo: https://github.com/KingKharid/1Thing-Meta-AI
-- Demo: `<!-- TODO -->`
+- Demo: https://kingkharid--1thing-web-web.us-east.modal.run/demo
 - Video: `<!-- TODO -->`
 
 ## What I would build next

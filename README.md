@@ -2,7 +2,8 @@
 
 > **Meta Global AI Developer Hackathon — Indie Developer track.**
 > Repo: [KingKharid/1Thing-Meta-AI](https://github.com/KingKharid/1Thing-Meta-AI)
-> Demo: `<!-- TODO: replace with the deployed Vercel URL -->` · Video: `<!-- TODO: replace with the submission video -->`
+> **Demo: <https://kingkharid--1thing-web-web.us-east.modal.run/demo>**
+> Video: `<!-- TODO: replace with the submission video -->`
 
 Every productivity app shows you the mountain. 1Thing refuses.
 
@@ -169,20 +170,41 @@ task.
 
 ## Deploy
 
-**Backend** — `Dockerfile` + `render.yaml` (web service + managed Postgres 16):
+The public demo above runs on Modal. The production path is Render + Vercel.
+
+**Modal (what the demo link uses)** — `infra/modal_api.py` serves the FastAPI
+app as an ASGI endpoint with one container and a durable Modal Volume;
+`infra/modal_web.py` serves the Next.js standalone build.
+
+```bash
+modal deploy infra/modal_api.py    # -> the API URL
+modal deploy infra/modal_web.py    # -> the web URL
+# then pin CORS to the web origin and redeploy the API:
+#   $env:ONETHING_WEB_ORIGIN="https://<web>.modal.run"; modal deploy infra/modal_api.py
+modal secret create onething-web-admin ADMIN_API_KEY=... SECRET_KEY=...
+```
+
+This host keeps SQLite on a **Modal Volume**, which is durable block storage
+rather than the ephemeral disk that made SQLite a liability. It is still a
+single-writer database pinned to `max_containers=1`, and it is the demo host,
+not the production story.
+
+**Render (production)** — `Dockerfile` + `render.yaml` (web service + managed
+Postgres 16):
 
 ```bash
 # Render -> New -> Blueprint -> point at this repo
 # set MODEL_API_KEY, BASETEN_API_KEY, MODAL_WORKER_URL, ALLOWED_ORIGINS
 ```
 
-**Web** — `web/vercel.json`; set `NEXT_PUBLIC_API_URL` to the Render URL and
-`ADMIN_API_KEY` (server-side) to the same value as the backend.
+**Vercel (production web)** — `web/vercel.json`; set `NEXT_PUBLIC_API_URL` to
+the Render URL and `ADMIN_API_KEY` (server-side) to the backend's value.
 
-**Modal** — `modal deploy infra/modal_worker.py`, then set `MODAL_WORKER_URL`.
+**Media worker** — `modal deploy infra/modal_worker.py`, then set
+`MODAL_WORKER_URL`.
 
-Production uses PostgreSQL via `DATABASE_URL`; SQLite is local-dev only and is
-not durable on ephemeral hosts.
+Production uses PostgreSQL via `DATABASE_URL`; SQLite is local-dev and demo
+only.
 
 ---
 

@@ -1804,6 +1804,41 @@ button.ingest-cta:disabled {
   mask-image: linear-gradient(180deg, #000 68%, transparent);
 }
 
+/* ------------------------------------------------------------ admin gate */
+
+.admin-gate-form {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin: 4px 0 26px;
+}
+
+.admin-gate-label {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-ghost);
+}
+
+.admin-gate-input {
+  width: min(360px, 100%);
+  padding: 10px 12px;
+  border: 1px solid var(--hairline-bright);
+  background: rgba(249, 248, 246, 0.02);
+  color: var(--bone);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  outline: none;
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.admin-gate-input:focus {
+  border-color: var(--amber);
+}
+
+.admin-gate-form .ingest-cta {
+  margin: 4px 0 0;
+}
+
 /* --------------------------------------------------------- reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
