@@ -317,8 +317,9 @@ a {
 
 /* ------------------------------------------------------- surface heading */
 
-/* The task title is a kicker, not the headline: the physical step owns
-   the screen. Title stays one line and truncates rather than wrapping. */
+/* The physical step is the headline; the title is the task's name, so it
+   reads as a real secondary heading rather than 10px metadata. Title stays
+   one line and truncates rather than pushing the step down. */
 .focus-head {
   display: flex;
   align-items: baseline;
@@ -336,6 +337,18 @@ a {
   letter-spacing: 0.18em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Sans, normal tracking, one weight up from the body: the title names the
+   task in the same voice a person would say it. The step below stays the
+   largest thing on the card. */
+.focus-task.is-title {
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  font-size: clamp(15px, 1.6vw, 17px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
 }
 
 .focus-serial {
@@ -484,7 +497,7 @@ a {
 /* A step that runs long degrades to two tiers: the verb stays large, the
    object recedes a little. Never a wall of 48px text. */
 .focus-step.is-long {
-  font-size: clamp(26px, 3.4vw, 34px);
+  font-size: clamp(24px, 3vw, 30px);
   line-height: 1.18;
   letter-spacing: -0.02em;
   max-width: 30ch;

@@ -117,7 +117,7 @@ export default async function FocusPage({
           ) : (
             <section className="focus-card" aria-label="Current task">
               <div className="focus-head">
-                <span className="focus-task mono" title={task.title}>
+                <span className="focus-task is-title" title={task.title}>
                   {task.title}
                 </span>
                 {serial && <span className="focus-serial mono">{serial}</span>}
