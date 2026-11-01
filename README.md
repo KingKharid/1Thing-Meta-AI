@@ -223,13 +223,14 @@ Stated plainly, because a judge should be able to trust the rest of this page:
 - **`/portal`.** Does not exist.
 - **Media metering.** Voice/vision calls are not counted in the LLMOps plane
   (the row says `UNMETERED`).
-- **WhatsApp credentials.** The webhook handshake is live (correct token
-  echoes `hub.challenge`, wrong token 403) and inbound text runs the full
-  pipeline. `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are not
-  configured in this environment, so an inbound voice note stops honestly at
-  the Graph download and the user gets "I could not read that one." The media
-  path itself (Graph bytes, Modal normalize, Meta `/v1/responses`) is
-  exercised end-to-end with real audio and image bytes, not mocked.
+- **WhatsApp live.** Verified end-to-end Nov 2 on the public host: webhook
+  handshake (correct token echoes `hub.challenge`, wrong token 403), inbound
+  text → filed task → DONE/SKIP reply, voice note → transcript → triage →
+  reply, and photo → extracted lines → triage → reply. The number's business
+  account initially delivered only to Meta's internal test app; subscribing
+  `1Thing app` via `POST /{waba-id}/subscribed_apps` fixed forwarding. Needs
+  `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` set (test tokens
+  expire in ~24h — use a permanent System User token for judging week).
 
 ---
 

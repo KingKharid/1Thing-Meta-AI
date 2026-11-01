@@ -82,10 +82,8 @@ Postgres 16; the public demo runs on Modal with SQLite on a durable volume),
 134 passing tests, a Next.js sanctuary with a `/demo` judge entry, an Expo
 client, and a six-plane control room with admin auth and rate limiting. Wear
 OS, `/portal`, WebSockets, Redis, Stripe and phone OTP are explicitly not
-built and listed as such. Live WhatsApp voice requires
-`WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`; without them the
-webhook handshake and text path run but voice stops honestly at the Graph
-download.
+built and listed as such. WhatsApp text, voice, and photo are verified live
+end-to-end (Nov 2): message → filed tasks → one step + DONE/SKIP reply.
 
 ## Built with
 
