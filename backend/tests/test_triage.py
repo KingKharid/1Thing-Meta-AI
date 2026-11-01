@@ -17,6 +17,7 @@ from app.services.triage import (
     extract,
     extract_or_fallback,
     fallback,
+    is_greeting,
     triage,
 )
 
@@ -370,3 +371,21 @@ def test_extract_logs_failed_attempts_before_fallback(monkeypatch):
         {"provider": "baseten", "ok": False},
         {"provider": "meta", "ok": False},
     ]
+
+
+def test_is_greeting_matches_whole_greetings_only():
+    for text in [
+        'hi', 'hey', 'hello', 'greetings', 'morning', 'good afternoon',
+        'afternoon', 'good day', 'night', 'hey there', 'thanks',
+        'thank you so much', 'hello 1thing', 'good morning!', 'HOW ARE YOU?',
+    ]:
+        assert is_greeting(text) is True, text
+    for text in [
+        'hi, remind me to pay rent tomorrow',
+        'hello, book the flight',
+        'good morning, call the dentist',
+        'thanks for nothing, fix the tap',
+        '',
+        '   ',
+    ]:
+        assert is_greeting(text) is False, text
