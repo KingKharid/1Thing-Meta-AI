@@ -76,6 +76,24 @@ def _count(db: Session, *filters) -> int:
     return db.query(func.count(Task.id)).filter(*filters).scalar() or 0
 
 
+def _ago(when: datetime | None, now: datetime) -> str:
+    """Human age of a log row. Naive SQLite timestamps are treated as UTC."""
+    if when is None:
+        return "NEVER"
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    seconds = max(0, int((now - when).total_seconds()))
+    if seconds < 60:
+        return f"{seconds}S AGO"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes}M AGO"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}H AGO"
+    return f"{hours // 24}D AGO"
+
+
 @router.get("/telemetry", response_model=TelemetryOut)
 def read_telemetry(db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
@@ -164,6 +182,30 @@ def read_telemetry(db: Session = Depends(get_db)):
     )
     media_model = os.getenv("META_VOICE_MODEL", "muse-wonder-1.0")
 
+    # Which engine answered most recently. Counts alone cannot distinguish
+    # "Baseten is primary" from "Baseten was primary once"; recency can.
+    last_routing = (
+        db.query(InvariantLog)
+        .filter(InvariantLog.invariant == "model_routing")
+        .order_by(InvariantLog.created_at.desc(), InvariantLog.id.desc())
+        .first()
+    )
+    if last_routing is None:
+        last_engine = "NONE YET"
+        last_engine_tone = "amber"
+        last_engine_model = "—"
+        last_engine_age = "NEVER"
+    else:
+        provider, _, outcome = last_routing.action.rpartition("_")
+        last_engine = f"{provider.upper()} // {outcome.upper()}"
+        last_engine_tone = "emerald" if outcome == "ok" else "amber"
+        last_engine_model = (
+            os.getenv("BASETEN_MODEL", "meta-models/muse-spark-open-1026")
+            if provider == "baseten"
+            else os.getenv("META_MODEL", "muse-spark-1.3")
+        )
+        last_engine_age = _ago(last_routing.created_at, now)
+
     return TelemetryOut(
         planes=[
             Plane(
@@ -192,6 +234,13 @@ def read_telemetry(db: Session = Depends(get_db)):
                         value=f"{PRIMARY_ENGINE.upper()} // OPEN WEIGHTS",
                         tone="emerald" if PRIMARY_ENGINE == "baseten" else None,
                     ),
+                    PlaneRow(
+                        key="LAST_ENGINE",
+                        value=last_engine,
+                        tone=last_engine_tone,
+                    ),
+                    PlaneRow(key="ENGINE_MODEL", value=last_engine_model),
+                    PlaneRow(key="LAST_ENGINE_AGE", value=last_engine_age),
                     PlaneRow(
                         key="META_API_KEY",
                         value=meta_key,

@@ -684,3 +684,7 @@ def test_telemetry_counts_provider_calls(client: TestClient):
     rows = {row["key"]: row["value"] for row in planes["llmops"]["rows"]}
     assert rows["BASETEN_CALLS_24H"] == "2"
     assert rows["META_CALLS_24H"] == "1"
+    # Recency, not just totals: the last row written was the Meta attempt.
+    assert rows["LAST_ENGINE"] == "META // OK"
+    assert rows["LAST_ENGINE_AGE"].endswith("AGO")
+    assert rows["ENGINE_MODEL"]

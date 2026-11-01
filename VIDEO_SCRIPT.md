@@ -67,9 +67,11 @@ Press **DONE**. The card swaps to the venue deposit. Reserve drops 8 → 7.
 > "Done. And it already knew what was next. Eight more are filed. I never see
 > them. That's the whole product — the mountain is captured, not displayed."
 
-### 1:45 – 2:15 — the same thing on WhatsApp
+### 1:45 – 2:15 — the same thing on WhatsApp (only if live)
 
-Cut to the phone. Send a voice note:
+Record this segment only after a real voice note is verified end-to-end
+(`WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` set, transcript →
+tasks confirmed). Cut to the phone. Send a voice note:
 
 > "Remind me to book the flight for the offsite, and pick up the dry cleaning
 > before Thursday."
@@ -77,6 +79,10 @@ Cut to the phone. Send a voice note:
 Show the reply: one step, with DONE / SKIP buttons.
 
 > "Same engine, no app to open. Voice note in, one step out."
+
+Fallback if WhatsApp is not live: skip this segment and extend 1:20–1:45
+with a second DONE → next promotion on web. Do not simulate a voice reply —
+an unverified hero moment costs more than it gains.
 
 ### 2:15 – 2:40 — the proof underneath
 
@@ -88,8 +94,8 @@ Cut to `/admin`. It asks for the operator key — type it, do not cut around it.
 > running, so the midnight sweep and the single stall nudge are real, not
 > claimed."
 
-Point at `PRIMARY_ENGINE // BASETEN // OPEN WEIGHTS`, `SCHEDULER // RUNNING`,
-and `PHONE_OTP // NOT BUILT`.
+Point at `PRIMARY_ENGINE // BASETEN // OPEN WEIGHTS`, `LAST_ENGINE` with a
+fresh `LAST_ENGINE_AGE`, `SCHEDULER // RUNNING`, and `PHONE_OTP // NOT BUILT`.
 
 > "And where something isn't built, it says so. That row is honest."
 

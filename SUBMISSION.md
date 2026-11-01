@@ -63,7 +63,11 @@ LLMOps plane, so the routing claim is visible rather than asserted.
 (FFmpeg to 16 kHz WAV, Pillow to 1568 px JPEG) → Meta `/v1/responses` with
 `muse-wonder-1.0`. Note that the OpenAI-compatible `/audio/transcriptions` and
 `/media/segmentation` routes 404 on this API; `/v1/responses` with an
-`input_audio`/`input_image` part is the route that actually answers.
+`input_audio`/`input_image` part is the route that actually answers. Media
+stays on Meta by necessity: this Baseten key is scoped to
+`muse-spark-open-1026` (other models 403) and the catalog exposes no ASR
+model, so open weights covers extraction — the reasoning step — not
+transcription.
 
 **Honesty as an engineering constraint.** If the model cannot produce a step,
 the card says `NO STEP YET` and offers `DERIVE STEP` — it never shows a
@@ -73,10 +77,15 @@ and phone OTP `NOT BUILT` instead of showing a plausible zero.
 
 **What is real today.** A FastAPI core with a single-active-task guard,
 idempotent completion, a midnight sweep and one-shot stall nudge on a real
-scheduler, PostgreSQL in production, 134 passing tests, a Next.js sanctuary
-with a `/demo` judge entry, an Expo client, and a six-plane control room with
-admin auth and rate limiting. Wear OS, `/portal`, WebSockets, Redis, Stripe and
-phone OTP are explicitly not built and listed as such.
+scheduler, PostgreSQL as the production path (`render.yaml` + managed
+Postgres 16; the public demo runs on Modal with SQLite on a durable volume),
+134 passing tests, a Next.js sanctuary with a `/demo` judge entry, an Expo
+client, and a six-plane control room with admin auth and rate limiting. Wear
+OS, `/portal`, WebSockets, Redis, Stripe and phone OTP are explicitly not
+built and listed as such. Live WhatsApp voice requires
+`WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`; without them the
+webhook handshake and text path run but voice stops honestly at the Graph
+download.
 
 ## Built with
 
