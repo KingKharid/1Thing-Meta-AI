@@ -160,3 +160,36 @@ def test_pipeline_falls_back_to_verbatim_filing(pipeline, monkeypatch):
         db.close()
 
     assert pipeline["sent"], "the user must still get the focus reply"
+
+
+def test_pipeline_greeting_files_nothing_and_answers_from_state(pipeline, monkeypatch):
+    calls: list[str] = []
+
+    def boom(*args, **kwargs):
+        calls.append('model')
+        raise AssertionError('a greeting must never reach the model')
+
+    monkeypatch.setattr(main, 'extract_or_fallback', boom)
+    result = main.handle_pipeline('Hello!!', user_id=PHONE)
+
+    assert result['greeting'] is True
+    assert calls == []
+    db = pipeline['factory']()
+    try:
+        assert db.query(Task).count() == 0
+    finally:
+        db.close()
+    bodies = [body for _, body, _ in pipeline['sent']]
+    assert any('STANDBY' in body for body in bodies), bodies
+
+
+def test_greeting_guard_keeps_task_bearing_text(pipeline, monkeypatch):
+    seen: list[str] = []
+
+    def fake_extract(*args, **kwargs):
+        seen.append("called")
+        return [], True
+
+    monkeypatch.setattr(main, "extract_or_fallback", fake_extract)
+    main.handle_pipeline("hi, remind me to pay rent tomorrow", user_id=PHONE)
+    assert seen == ["called"]

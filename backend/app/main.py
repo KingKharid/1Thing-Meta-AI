@@ -17,7 +17,7 @@ from app.services import whatsapp_templates
 from app.services.media import MediaError, ingest_whatsapp_media
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
-from app.services.triage import extract_or_fallback, log_model_attempts
+from app.services.triage import extract_or_fallback, is_greeting, log_model_attempts
 from app.services.whatsapp_client import send_focus_message, send_text
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "one_thing_hackathon_verify_token_2026")
@@ -235,6 +235,30 @@ def handle_media(kind: str, user_id: str = "unknown", media_id: str = "") -> dic
 
 
 def handle_pipeline(raw_text: str, engine: str | None = None, user_id: str = "unknown"):
+    # A greeting is not a task: answer from current state instead of
+    # burning a model call and filing the word "hi" as real work.
+    if is_greeting(raw_text):
+        db: Session = SessionLocal()
+        try:
+            user = get_or_create_user(db, phone_number=user_id)
+            user_pk = user.id
+            first_contact = db.query(Task).filter(Task.user_id == user_pk).count() == 0
+            active = invariant_guard.get_active_task(db, user.id)
+            if active is None:
+                reserve = _reserve_count(db, user.id)
+                reply, task_id = whatsapp_templates.idle_reply(reserve), None
+            else:
+                reserve = _reserve_count(db, user.id)
+                reply = whatsapp_templates.current_reply(_task_brief(active), reserve)
+                task_id = active.id
+            db.commit()
+        finally:
+            db.close()
+        if first_contact:
+            _deliver(user_id, whatsapp_templates.onboarding_reply())
+        _deliver_focus(user_id, reply, task_id)
+        return {"greeting": True, "selected_task": None, "queued_backlog_count": 0}
+
     # First contact is decided before the LLM call so the onboarding line
     # can ride along with the first real reply.
     db: Session = SessionLocal()

@@ -26,7 +26,12 @@ from app.models import Task, TaskStatus, get_db, get_or_create_user
 from app.services.ratelimit import rate_limit
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
-from app.services.triage import extract_or_fallback, log_model_attempts, triage
+from app.services.triage import (
+    extract_or_fallback,
+    is_greeting,
+    log_model_attempts,
+    triage,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["focus"])
 
@@ -204,6 +209,15 @@ def create_task(
 
     if not title and not dump:
         raise HTTPException(status_code=400, detail="Title must not be blank")
+
+    # A greeting is not a task. Filing it would put the word "hi" on the
+    # surface as real work, so refuse it plainly instead. The web composer
+    # keeps the text and shows its generic nothing-filed error.
+    if dump and not title and is_greeting(dump):
+        raise HTTPException(
+            status_code=400,
+            detail="That looks like a greeting, not a task. Send something to do.",
+        )
 
     step_source: Literal["user", "engine", "heuristic", "none"] = "none"
     entries: list[dict]

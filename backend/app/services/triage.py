@@ -241,6 +241,48 @@ def _energy_for(chunk: str) -> str:
     return "medium"
 
 
+# A greeting is not a task. Without this guard a lone "hi" burns a model
+# call and then the verbatim fallback files the word "Hi" as a real task —
+# junk on the surface, paid for twice. Matching is deliberately narrow:
+# the whole message must be a greeting, so "hi, remind me to…" still
+# triages normally.
+_GREETINGS = frozenset(
+    {
+        "hi",
+        "hey",
+        "hello",
+        "yo",
+        "sup",
+        "hiya",
+        "howdy",
+        "thanks",
+        "thank you",
+        "thx",
+        "ok",
+        "okay",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "good night",
+        "morning",
+        "evening",
+        "how are you",
+        "how are u",
+        "how r u",
+        "whats up",
+        "what's up",
+    }
+)
+
+
+def is_greeting(raw_dump: str) -> bool:
+    """True when the message is only a greeting, never a task."""
+    text = (raw_dump or "").strip().casefold()
+    text = re.sub(r"[!.,?…\s]+$", "", text).strip()
+    text = re.sub(r"\s+", " ", text)
+    return bool(text) and text in _GREETINGS
+
+
 def _chunks(raw_dump: str) -> list[str]:
     text = (raw_dump or "").strip()
     if not text:

@@ -429,6 +429,22 @@ def test_dump_files_every_task_and_activates_only_the_first(
     assert "Task 1" not in str(focus)
 
 
+def test_dump_greeting_is_refused_not_filed(client: TestClient, monkeypatch):
+    """A lone greeting is not a task: 400, nothing filed, no model call."""
+    monkeypatch.setattr(
+        focus_router, "extract_or_fallback", lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("a greeting must never reach extraction")
+        ),
+    )
+    res = client.post("/api/v1/tasks", headers=HEADERS, json={"dump": "hello!!"})
+    assert res.status_code == 400
+    db = client.testing_session()
+    try:
+        assert db.query(Task).count() == 0
+    finally:
+        db.close()
+
+
 def test_dump_failure_files_nothing_and_says_so(client: TestClient):
     """A half-read week would silently lose work, so nothing is written."""
     res = client.post(
