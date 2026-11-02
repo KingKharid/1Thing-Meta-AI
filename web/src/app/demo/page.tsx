@@ -89,6 +89,7 @@ export default function DemoPage() {
                 </button>
                 <p className="demo-door-note">
                   Lands on one real task with its first physical move.
+                  Press DONE — the next one is already waiting.
                 </p>
               </div>
 

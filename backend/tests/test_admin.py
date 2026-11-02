@@ -97,13 +97,13 @@ def test_demo_reset_replaces_only_the_demo_identity(client, monkeypatch):
     assert body["phone"] == "+15550007777"
     assert body["task"]["title"] == "Lay out church outfit"
     assert body["task"]["first_micro_step"].startswith("Walk to closet")
-    assert body["queued_backlog_count"] == 0
+    assert body["queued_backlog_count"] == 2
 
     db = client.testing_session()
     try:
         demo = db.query(User).filter_by(phone_number="+15550007777").one()
         demo_tasks = db.query(Task).filter_by(user_id=demo.id).all()
-        assert len(demo_tasks) == 1
+        assert len(demo_tasks) == 3
         assert demo_tasks[0].status == TaskStatus.IN_PROGRESS
 
         untouched = db.query(Task).filter_by(title="Someone else's work").one()
@@ -121,6 +121,6 @@ def test_demo_reset_is_idempotent(client, monkeypatch):
     db = client.testing_session()
     try:
         demo = db.query(User).filter_by(phone_number="+15550007777").one()
-        assert db.query(Task).filter_by(user_id=demo.id).count() == 1
+        assert db.query(Task).filter_by(user_id=demo.id).count() == 3
     finally:
         db.close()
