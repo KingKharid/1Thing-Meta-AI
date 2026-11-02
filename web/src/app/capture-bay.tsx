@@ -63,8 +63,10 @@ export default function CaptureBay({
 }: Props) {
   const router = useRouter();
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(prefill);
   const [pending, setPending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filed, setFiled] = useState<Filed | null>(() => lastFiled);
   // Extraction is a 10–15s model call on a long dump. A spinner alone
@@ -119,7 +121,7 @@ export default function CaptureBay({
   }
 
   async function file() {
-    if (!live || pending || text.trim().length === 0) return;
+    if (!live || busy || text.trim().length === 0) return;
     setPending(true);
     setError(null);
     lastFiled = null;
@@ -141,6 +143,13 @@ export default function CaptureBay({
         setError(
           "NOTHING FILED — THE ENGINE COULD NOT READ THIS. YOUR DUMP IS STILL HERE. PRESS SEND TO RETRY.",
         );
+        return;
+      }
+      if (res.status === 400) {
+        // A refusal, not an outage: greeting dumps and blank titles land
+        // here. The server's detail says why; surface it, keep the text.
+        const detail = await readDetail(res);
+        setError(detail ?? "NOTHING FILED — THAT WAS NOT ACCEPTED.");
         return;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -172,6 +181,78 @@ export default function CaptureBay({
   }
 
   const empty = text.trim().length === 0;
+  const busy = pending || uploading;
+
+  // Server refusals carry a plain detail string ("That looks like a
+  // greeting…"). Anything else falls back to the generic nothing-filed
+  // line so an unreadable error never renders raw JSON.
+  async function readDetail(res: Response): Promise<string | null> {
+    try {
+      const data = (await res.json()) as { detail?: unknown };
+      if (typeof data.detail === "string" && data.detail.trim()) {
+        return data.detail.trim().toUpperCase();
+      }
+    } catch {
+      // Fall through to the generic line below.
+    }
+    return null;
+  }
+
+  // Photo or voice memo: same pipeline WhatsApp media takes, same
+  // receipt shape back. The file input (not a drop zone) is the whole
+  // UI — on phones it opens camera, gallery, or recorder directly.
+  async function attach(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    e.target.value = "";
+    if (!live || busy || !picked) return;
+    setUploading(true);
+    setError(null);
+    lastFiled = null;
+    setFiled(null);
+    try {
+      const form = new FormData();
+      form.append("file", picked);
+      const res = await fetch(`${apiUrl}/api/v1/tasks/media`, {
+        method: "POST",
+        headers: { "X-Phone-Number": phone },
+        body: form,
+        signal: AbortSignal.timeout(120000),
+      });
+      if (res.status === 503) {
+        setError(
+          "NOTHING FILED — THE FILE COULD NOT BE READ. NOTHING WAS LOST.",
+        );
+        return;
+      }
+      if (res.status === 400) {
+        const detail = await readDetail(res);
+        setError(detail ?? "NOTHING FILED — THAT FILE WAS NOT ACCEPTED.");
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as {
+        task: { id: number };
+        activated: boolean;
+        queued_backlog_count: number;
+        step_source?: "user" | "engine" | "heuristic" | "none";
+        filed_count?: number;
+      };
+      lastFiled = {
+        id: data.task.id,
+        activated: data.activated,
+        reserve: data.queued_backlog_count,
+        count: data.filed_count ?? 1,
+        stepSource: data.step_source ?? "none",
+      };
+      setFiled(lastFiled);
+      router.refresh();
+      areaRef.current?.focus();
+    } catch {
+      setError("NOTHING FILED — THE FILE DID NOT SEND. NOTHING WAS LOST.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // Enter sends, like any message bar; Shift+Enter is a line break. The
   // composing guard keeps IME input (e.g. Japanese) from submitting on the
@@ -191,6 +272,11 @@ export default function CaptureBay({
         : `FILED · ${batch}${serial} IS YOUR ONE THING`
       : `FILED · ${batch}${filed.reserve} HELD IN RESERVE`
     : "";
+  const hint = pending
+    ? `EXTRACTING · ${elapsed}S`
+    : uploading
+      ? "READING FILE"
+      : "SHIFT+↵ NEW LINE";
 
   return (
     <section className="composer" aria-label="Capture">
@@ -227,7 +313,7 @@ export default function CaptureBay({
               &#8627;
             </span>
             <span className="composer-hint mono">
-              {pending ? `EXTRACTING · ${elapsed}S` : "SHIFT+↵ NEW LINE"}
+              {hint}
             </span>
             {text.length > COUNT_FROM && (
               <span className="composer-count mono" aria-live="polite">
@@ -241,14 +327,35 @@ export default function CaptureBay({
           type="submit"
           className="composer-send mono"
           aria-label="Send dump"
-          disabled={!live || pending || empty}
+          disabled={!live || busy || empty}
         >
           <span className="composer-send-label">
-            {pending ? "FILING" : "SEND"}
+            {pending || uploading ? "FILING" : "SEND"}
           </span>
           <span className="composer-key" aria-hidden="true">
             &#9166;
           </span>
+        </button>
+
+        {/* Photo or voice memo. The native file input is the whole UI:
+            on phones it opens camera, gallery, or recorder directly. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,audio/*"
+          className="sr-only"
+          aria-label="Attach a photo or voice note"
+          disabled={!live || busy}
+          onChange={(e) => void attach(e)}
+        />
+        <button
+          type="button"
+          className="composer-attach mono"
+          aria-label="Attach a photo or voice note"
+          disabled={!live || busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          <span className="composer-attach-mark" aria-hidden="true" />
         </button>
       </form>
 

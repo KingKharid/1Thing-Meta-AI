@@ -18,11 +18,13 @@ login lands.
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.models import Task, TaskStatus, get_db, get_or_create_user
+from app.services import media as media_service
+from app.services.media import MediaError
 from app.services.ratelimit import rate_limit
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
@@ -156,6 +158,42 @@ def _owned_task_or_404(db: Session, user_id: int, task_id: int) -> Task:
     return task
 
 
+def _persist_filed(
+    db: Session, user_id: int, entries: list[dict], attempts: list[dict]
+) -> tuple[list[Task], Task | None, bool]:
+    """Store extracted entries in model order and activate only the head.
+
+    Shared by the text and media capture paths so they cannot drift apart:
+    everything is filed, Invariant 1 demotes any mid-step task to the
+    hidden reserve, and the caller owns the response shape. Commits.
+    """
+    tasks: list[Task] = []
+    for entry in entries:
+        task = Task(
+            user_id=user_id,
+            title=entry["title"],
+            first_micro_step=entry["first_micro_step"],
+            estimated_minutes=entry["estimated_minutes"],
+            energy_required=entry["energy_required"],
+            status=TaskStatus.QUEUED,
+        )
+        db.add(task)
+        tasks.append(task)
+    db.flush()
+
+    # Never yank a task the person is already mid-step on. The new head
+    # waits in the reserve until the current one is done or skipped.
+    active = guard.get_active_task(db, user_id)
+    activated = False
+    if active is None and tasks:
+        guard.activate_task(db, tasks[0])
+        active = tasks[0]
+        activated = True
+    log_model_attempts(db, user_id, attempts)
+    db.commit()
+    return tasks, active, activated
+
+
 @router.get("/focus", response_model=FocusOut)
 def read_focus(
     db: Session = Depends(get_db),
@@ -265,31 +303,106 @@ def create_task(
 
     # Insert in the model's order. Auto-increment ids therefore preserve
     # priority, which is what the reserve promotes by.
-    tasks: list[Task] = []
-    for entry in entries:
-        task = Task(
-            user_id=user_id,
-            title=entry["title"],
-            first_micro_step=entry["first_micro_step"],
-            estimated_minutes=entry["estimated_minutes"],
-            energy_required=entry["energy_required"],
-            status=TaskStatus.QUEUED,
+    tasks, active, activated = _persist_filed(db, user_id, entries, attempts)
+    return TaskCreateOut(
+        task=task_out(tasks[0]),
+        active_task=task_out(active) if active is not None else None,
+        queued_backlog_count=_reserve_count(db, user_id),
+        activated=activated,
+        step_source=step_source,
+        filed_count=len(tasks),
+        stashed_count=len(tasks) - (1 if activated else 0),
+    )
+
+
+# WhatsApp voice notes arrive as ogg; the worker cap below matches the
+# Modal contract so a file the worker would refuse fails here instead.
+MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+
+
+@router.post(
+    "/tasks/media",
+    response_model=TaskCreateOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit)],
+)
+def create_task_from_media(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    """File a photo or voice note from any surface with an upload button.
+
+    The web composer speaks text only, so this is how a photographed note
+    or a recorded voice memo enters the same pipeline WhatsApp media
+    takes: Modal normalisation (or direct pass-through for formats the
+    model already reads), Meta ``/v1/responses`` extraction to text,
+    then the standard ordered filing below. One endpoint, one contract,
+    every surface files the same way.
+
+    Honest failures, same as the text path: 400 for a file that is not
+    audio or imagery (or a greeting transcript), 503 when nothing
+    readable comes out — the composer keeps its state either way.
+    """
+    mime = (file.content_type or "").lower().split(";")[0].strip()
+    family = mime.partition("/")[0]
+    if family not in ("audio", "image"):
+        raise HTTPException(
+            status_code=400,
+            detail="Send an audio or image file. Text goes in the composer.",
         )
-        db.add(task)
-        tasks.append(task)
-    db.flush()
 
-    # Never yank a task the person is already mid-step on. The dump waits
-    # in the reserve until the current one is done or skipped.
-    active = guard.get_active_task(db, user_id)
-    activated = False
-    if active is None and tasks:
-        guard.activate_task(db, tasks[0])
-        active = tasks[0]
-        activated = True
-    log_model_attempts(db, user_id, attempts)
-    db.commit()
+    blob = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(blob) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="That file is too large.")
+    if not blob:
+        raise HTTPException(status_code=400, detail="That file is empty.")
 
+    try:
+        if family == "audio":
+            normalized, out_mime = media_service._normalize_or_passthrough(
+                "audio", blob, mime
+            )
+            text = media_service.transcribe_audio_bytes(
+                normalized, filename=file.filename or "voice",
+                mime=out_mime or mime,
+            )
+        else:
+            normalized, out_mime = media_service._normalize_or_passthrough(
+                "image", blob, mime
+            )
+            text = media_service.segment_image_bytes(
+                normalized, filename=file.filename or "note.jpg",
+                mime=out_mime or mime,
+            )
+    except MediaError as exc:
+        raise HTTPException(status_code=503, detail=f"Could not read this file: {exc}")
+
+    text = (text or "").strip()
+    if not text:
+        raise HTTPException(
+            status_code=503, detail="No task text found in this file."
+        )
+    if is_greeting(text):
+        raise HTTPException(
+            status_code=400,
+            detail="That sounded like a greeting, not a task. Send something to do.",
+        )
+
+    attempts: list[dict] = []
+    entries, used_fallback = extract_or_fallback(
+        text, suggest_context(db, user_id), attempt_log=attempts
+    )
+    if not entries:
+        raise HTTPException(
+            status_code=503,
+            detail="The engine could not read this file. Nothing was filed.",
+        )
+    step_source: Literal["user", "engine", "heuristic", "none"] = (
+        "heuristic" if used_fallback else "engine"
+    )
+
+    tasks, active, activated = _persist_filed(db, user_id, entries, attempts)
     return TaskCreateOut(
         task=task_out(tasks[0]),
         active_task=task_out(active) if active is not None else None,

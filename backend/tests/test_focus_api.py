@@ -704,3 +704,59 @@ def test_telemetry_counts_provider_calls(client: TestClient):
     assert rows["LAST_ENGINE"] == "META // OK"
     assert rows["LAST_ENGINE_AGE"].endswith("AGO")
     assert rows["ENGINE_MODEL"]
+
+
+def test_media_image_files_tasks_like_a_dump(client: TestClient, monkeypatch):
+    import app.services.media as media_service
+
+    monkeypatch.setattr(media_service, '_normalize_or_passthrough', lambda *a, **k: (b'img', 'image/jpeg'))
+    monkeypatch.setattr(media_service, 'segment_image_bytes', lambda *a, **k: 'call the dentist about the crown')
+    monkeypatch.setattr(
+        focus_router, 'extract_or_fallback',
+        lambda *a, **k: ([{'title': 'Call dentist', 'first_micro_step': 'Pick up the phone and dial', 'estimated_minutes': 10, 'energy_required': 'high'}], False),
+    )
+
+    res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('note.jpg', b'fakebytes', 'image/jpeg')})
+    assert res.status_code == 201
+    body = res.json()
+    assert body['filed_count'] == 1
+    assert body['step_source'] == 'engine'
+    assert body['task']['title'] == 'Call dentist'
+
+
+def test_media_audio_uses_transcription(client: TestClient, monkeypatch):
+    import app.services.media as media_service
+
+    seen: list[str] = []
+    monkeypatch.setattr(media_service, '_normalize_or_passthrough', lambda *a, **k: (b'wav', 'audio/wav'))
+
+    def fake_transcribe(data, filename='voice', mime='audio/wav'):
+        seen.append(mime)
+        return 'pay rent tomorrow'
+
+    monkeypatch.setattr(media_service, 'transcribe_audio_bytes', fake_transcribe)
+    monkeypatch.setattr(
+        focus_router, 'extract_or_fallback',
+        lambda *a, **k: ([{'title': 'Pay rent', 'first_micro_step': 'Open the bank app', 'estimated_minutes': 5, 'energy_required': 'low'}], False),
+    )
+
+    res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('voice.ogg', b'fakebytes', 'audio/ogg')})
+    assert res.status_code == 201
+    assert seen == ['audio/wav']
+
+
+def test_media_rejects_non_media_and_empty_reads(client: TestClient, monkeypatch):
+    import app.services.media as media_service
+
+    monkeypatch.setattr(media_service, '_normalize_or_passthrough', lambda *a, **k: (_ for _ in ()).throw(AssertionError('unreachable')))
+    res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('doc.txt', b'hello', 'text/plain')})
+    assert res.status_code == 400
+
+    monkeypatch.setattr(media_service, '_normalize_or_passthrough', lambda *a, **k: (b'img', 'image/jpeg'))
+    monkeypatch.setattr(media_service, 'segment_image_bytes', lambda *a, **k: '   ')
+    res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('blank.jpg', b'fakebytes', 'image/jpeg')})
+    assert res.status_code == 503
+
+    monkeypatch.setattr(media_service, 'segment_image_bytes', lambda *a, **k: 'hello there')
+    res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('hi.jpg', b'fakebytes', 'image/jpeg')})
+    assert res.status_code == 400

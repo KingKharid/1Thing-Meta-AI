@@ -1687,6 +1687,78 @@ a {
   color: var(--erebus);
 }
 
+/* File attach: a machined square with a plus mark. Quiet like the send
+   key until there is an engine to receive — then bone like the key. */
+.composer-attach {
+  flex: none;
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--hairline-strong);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) ease,
+    background-color var(--dur-fast) ease;
+}
+
+.composer-attach-mark {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+
+.composer-attach-mark::before,
+.composer-attach-mark::after {
+  content: "";
+  position: absolute;
+  background: var(--text-ghost);
+  transition: background-color var(--dur-fast) ease;
+}
+
+.composer-attach-mark::before {
+  left: 4px;
+  top: 0;
+  width: 2px;
+  height: 10px;
+}
+
+.composer-attach-mark::after {
+  left: 0;
+  top: 4px;
+  width: 10px;
+  height: 2px;
+}
+
+.composer-attach:hover:enabled {
+  border-color: var(--hairline-bright);
+}
+
+.composer-attach:hover:enabled .composer-attach-mark::before,
+.composer-attach:hover:enabled .composer-attach-mark::after {
+  background: var(--bone);
+}
+
+.composer-attach:enabled .composer-attach-mark::before,
+.composer-attach:enabled .composer-attach-mark::after {
+  background: var(--text-dim);
+}
+
+.composer-attach:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.composer-attach:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
 /* The engine's answer, in one line. */
 .composer-receipt {
   display: flex;
@@ -1762,6 +1834,11 @@ a {
     min-width: 44px;
     justify-content: flex-end;
     padding: 0 4px;
+  }
+
+  .composer-attach {
+    width: 44px;
+    min-height: 44px;
   }
 }
 

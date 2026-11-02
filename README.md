@@ -27,7 +27,8 @@ the `EXTRACTING · Ns` counter (real latency, honestly cut in the
 video). Expect `FILED · 9 TASKS · #001 IS YOUR ONE THING`: nine filed,
 one physical step on screen, reserve count 8. Press **DONE** — `#002`
 appears, reserve drops to 7. Door **01 SEE ONE STEP** lands on one
-real active task instead.
+real active task instead. The **+** key beside SEND attaches a photo
+or voice memo into the same pipeline (Modal → Wonder → triage).
 
 **2. WhatsApp — same engine, no app (video-demonstrated).** The video
 shows a voice note becoming one step with DONE/SKIP buttons, plus the
@@ -93,7 +94,7 @@ Per-provider attempts are metered into the Admin LLMOps plane.
 
 | Surface | State | Notes |
 | :--- | :--- | :--- |
-| **Web sanctuary** (`web/`) | **Runs** | Next.js 14, the composer, the focus card, `/demo`, `/admin` |
+| **Web sanctuary** (`web/`) | **Runs** | Next.js 14, composer (text + photo/voice attach), focus card, `/demo`, `/admin` |
 | **WhatsApp** (`backend/app/main.py`) | **Runs** | Text, voice notes, photos, DONE/SKIP buttons |
 | **Mobile** (`mobile/`) | **Runs** | Expo single-screen focus card + one multiline dump sheet |
 | **watchOS** (`watch/watchos/`) | **Source only** | SwiftUI view + complication; no `.xcodeproj`, not built |
@@ -102,7 +103,9 @@ Per-provider attempts are metered into the Admin LLMOps plane.
 
 Media path: WhatsApp voice note or photo → Graph API download → Modal worker
 (FFmpeg → 16 kHz WAV, Pillow → 1568 px JPEG) → Meta `/v1/responses` with
-`muse-wonder-1.0` → transcript → the normal text pipeline.
+`muse-wonder-1.0` → transcript → the normal text pipeline. The web
+composer's attach key posts photo/voice files to `POST /api/v1/tasks/media`,
+which runs the same normalize → extract → ordered-filing path.
 
 > The OpenAI-compatible `/audio/transcriptions` and `/media/segmentation` routes
 > return 404 on the Meta Model API. `/v1/responses` with an `input_audio` or
