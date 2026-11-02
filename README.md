@@ -29,12 +29,15 @@ one physical step on screen, reserve count 8. Press **DONE** — `#002`
 appears, reserve drops to 7. Door **01 SEE ONE STEP** lands on one
 real active task instead.
 
-**2. WhatsApp — same engine, no app.** Message the test number a task
-("remind me to pay rent tomorrow"), a voice note, or a photo of a
-note. Expect one step back with DONE/SKIP buttons. Greetings ("hey")
-answer instantly from stored state with no model call. Voice and
-photos run Graph → Modal (FFmpeg/Pillow) → Meta `/v1/responses` with
-`muse-wonder-1.0` → the normal triage pipeline.
+**2. WhatsApp — same engine, no app (video-demonstrated).** The video
+shows a voice note becoming one step with DONE/SKIP buttons, plus the
+live reply thread. The test number only exchanges messages with
+registered test recipients, so judges cannot exercise it directly —
+treat the video segment plus the `WA_* // SET` telemetry rows as the
+evidence. Greetings ("hey") answer instantly from stored state with no
+model call. Voice and photos run Graph → Modal (FFmpeg/Pillow) →
+Meta `/v1/responses` with `muse-wonder-1.0` → the normal triage
+pipeline.
 
 **3. Control room — the proof.** Open `/admin`, unlock with the
 operator key (typed on camera in the video). Expect `PRIMARY_ENGINE //
