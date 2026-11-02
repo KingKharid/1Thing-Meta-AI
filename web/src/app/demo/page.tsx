@@ -75,6 +75,9 @@ export default function DemoPage() {
 
             <div className="demo-doors">
               <div className="demo-door">
+                <span className="demo-door-index mono" aria-hidden="true">
+                  01
+                </span>
                 <button
                   type="button"
                   className="ingest-cta mono"
@@ -90,6 +93,9 @@ export default function DemoPage() {
               </div>
 
               <div className="demo-door">
+                <span className="demo-door-index mono" aria-hidden="true">
+                  02
+                </span>
                 <button
                   type="button"
                   className="ingest-cta mono"

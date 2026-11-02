@@ -547,6 +547,11 @@ a {
   border-color: var(--hairline-bright);
 }
 
+.derive-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
 .derive-btn:disabled {
   color: var(--text-ghost);
   cursor: default;
@@ -1657,6 +1662,11 @@ a {
   cursor: default;
 }
 
+.composer-send:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
 .composer-key {
   display: inline-flex;
   align-items: center;
@@ -1668,8 +1678,13 @@ a {
   letter-spacing: 0;
 }
 
+/* Ready to send: the key fills bone-on-erebus, an inverted key rather
+   than a colored call to action. Monochrome urgency, no new semantics —
+   amber stays reserved for the step itself. */
 .composer-send:enabled .composer-key {
-  border-color: var(--hairline-bright);
+  border-color: var(--bone);
+  background: var(--bone);
+  color: var(--erebus);
 }
 
 /* The engine's answer, in one line. */
@@ -1783,6 +1798,16 @@ button.ingest-cta:disabled {
 .demo-door {
   padding-left: 14px;
   border-left: 1px solid var(--hairline-bright);
+}
+
+/* Door index: judges pick a door in order, and the numbers read as
+   steps rather than decoration. Ghost tone — the doors are the action. */
+.demo-door-index {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--text-ghost);
 }
 
 .demo-door .ingest-cta {
