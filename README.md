@@ -16,11 +16,37 @@ appears, in the order the model chose. You never see the list.
 
 ---
 
-## Try it
+## Judge testing guide
 
-1. Open the demo link above and press **WATCH A WEEK BECOME ONE**.
-2. The composer arrives preloaded with a messy ten-line dump. Press **SEND**.
-3. Nine things are filed, one is shown. Press **DONE** — the next one appears.
+What to check, in order. Every step runs against the live model —
+nothing is recorded or mocked.
+
+**1. Web — the 15-second demo.** Open `/demo`, press **02 WATCH A WEEK
+BECOME ONE**. The composer arrives preloaded; press **SEND** and watch
+the `EXTRACTING · Ns` counter (real latency, honestly cut in the
+video). Expect `FILED · 9 TASKS · #001 IS YOUR ONE THING`: nine filed,
+one physical step on screen, reserve count 8. Press **DONE** — `#002`
+appears, reserve drops to 7. Door **01 SEE ONE STEP** lands on one
+real active task instead.
+
+**2. WhatsApp — same engine, no app.** Message the test number a task
+("remind me to pay rent tomorrow"), a voice note, or a photo of a
+note. Expect one step back with DONE/SKIP buttons. Greetings ("hey")
+answer instantly from stored state with no model call. Voice and
+photos run Graph → Modal (FFmpeg/Pillow) → Meta `/v1/responses` with
+`muse-wonder-1.0` → the normal triage pipeline.
+
+**3. Control room — the proof.** Open `/admin`, unlock with the
+operator key (typed on camera in the video). Expect `PRIMARY_ENGINE //
+BASETEN // OPEN WEIGHTS` with a fresh `LAST_ENGINE_AGE`,
+`SCHEDULER // RUNNING`, per-provider call counters, and honest
+`NOT BUILT` / `UNMETERED` rows where applicable.
+
+**Runnable vs source-only.** Web, WhatsApp, and the Expo mobile client
+(`mobile/`, parses clean, bundle `ai.onething.focus`) run against this
+API. watchOS + lock-screen widget are complete SwiftUI/WidgetKit
+**source** (`watch/`) with attach instructions but no `.xcodeproj`
+— not built, not claimed. Wear OS is an empty placeholder.
 
 There is no sign-up and no task list. `/demo` resets only the demo identity.
 
