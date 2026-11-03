@@ -1840,6 +1840,19 @@ a {
     width: 44px;
     min-height: 44px;
   }
+
+  .demo-doors {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-steps {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .demo-step-arrow {
+    display: none;
+  }
 }
 
 /* ------------------------------------------------------------ demo entry */
@@ -1868,13 +1881,22 @@ button.ingest-cta:disabled {
 
 .demo-doors {
   display: grid;
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   margin: 4px 0 30px;
 }
 
 .demo-door {
-  padding-left: 14px;
-  border-left: 1px solid var(--hairline-bright);
+  padding: 18px 18px 16px;
+  border: 1px solid var(--hairline-strong);
+  background:
+    linear-gradient(180deg, rgba(249, 248, 246, 0.02), transparent 60%),
+    var(--carbon);
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.demo-door:hover {
+  border-color: var(--hairline-bright);
 }
 
 /* Door index: judges pick a door in order, and the numbers read as
@@ -1888,7 +1910,52 @@ button.ingest-cta:disabled {
 }
 
 .demo-door .ingest-cta {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+/* The demo in three moves: what the judge is about to watch happen. */
+.demo-steps {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: stretch;
+  gap: 10px;
+  margin: 2px 0 28px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--hairline-strong);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+.demo-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.demo-step-index {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--amber);
+}
+
+.demo-step-name {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--bone);
+}
+
+.demo-step-sub {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-ghost);
+}
+
+.demo-step-arrow {
+  align-self: center;
+  color: var(--text-ghost);
+  font-size: 12px;
+  user-select: none;
 }
 
 .demo-door-note {

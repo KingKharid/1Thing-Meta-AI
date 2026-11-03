@@ -73,6 +73,40 @@ export default function DemoPage() {
               Pick a door — both run against the live model, not a recording.
             </p>
 
+            <div className="demo-steps" aria-label="How the demo works">
+              <div className="demo-step">
+                <span className="demo-step-index mono" aria-hidden="true">
+                  01
+                </span>
+                <span className="demo-step-name mono">SEND THE WEEK</span>
+                <span className="demo-step-sub mono">
+                  ONE MESSY MESSAGE
+                </span>
+              </div>
+              <span className="demo-step-arrow" aria-hidden="true">
+                →
+              </span>
+              <div className="demo-step">
+                <span className="demo-step-index mono" aria-hidden="true">
+                  02
+                </span>
+                <span className="demo-step-name mono">NINE FILED</span>
+                <span className="demo-step-sub mono">HIDDEN · NEVER LISTED</span>
+              </div>
+              <span className="demo-step-arrow" aria-hidden="true">
+                →
+              </span>
+              <div className="demo-step">
+                <span className="demo-step-index mono" aria-hidden="true">
+                  03
+                </span>
+                <span className="demo-step-name mono">ONE STEP SHOWN</span>
+                <span className="demo-step-sub mono">
+                  DONE REVEALS THE NEXT
+                </span>
+              </div>
+            </div>
+
             <div className="demo-doors">
               <div className="demo-door">
                 <span className="demo-door-index mono" aria-hidden="true">
