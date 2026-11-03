@@ -1324,6 +1324,7 @@ a {
 }
 
 .plane {
+  position: relative;
   padding: 20px 22px 18px;
   background:
     linear-gradient(180deg, rgba(249, 248, 246, 0.02), transparent 40%),
@@ -1334,6 +1335,15 @@ a {
     border-color var(--dur) var(--ease-out),
     transform var(--dur) var(--ease-out),
     background-color var(--dur) var(--ease-out);
+}
+
+/* Machined inset frame, shared with the focus card. */
+.plane::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(249, 248, 246, 0.04);
+  pointer-events: none;
 }
 
 .plane:hover {
@@ -1976,9 +1986,32 @@ button.ingest-cta:disabled {
   color: var(--text-ghost);
 }
 
+/* Door CTAs are keys, not links: bordered mono buttons with an amber
+   hover edge, matching the action keys on the focus card. */
 .demo-door .ingest-cta {
-  margin-bottom: 10px;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(249, 248, 246, 0.02);
+  color: var(--bone);
+  font-size: 10px;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
+}
+
+.demo-door .ingest-cta:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber-warm);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.demo-door .ingest-cta:disabled {
+  opacity: 0.55;
 }
 
 /* The demo in three moves: what the judge is about to watch happen. */
@@ -2086,6 +2119,23 @@ button.ingest-cta:disabled {
 
 .admin-gate-form .ingest-cta {
   margin: 4px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(249, 248, 246, 0.02);
+  color: var(--bone);
+  transition:
+    border-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
+}
+
+.admin-gate-form .ingest-cta:hover {
+  border-color: var(--amber);
+  color: var(--amber-warm);
+  background: rgba(245, 158, 11, 0.06);
 }
 
 /* --------------------------------------------------------- reduced motion */
