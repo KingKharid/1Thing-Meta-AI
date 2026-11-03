@@ -343,12 +343,14 @@ a {
    task in the same voice a person would say it. The step below stays the
    largest thing on the card. */
 .focus-task.is-title {
-  color: var(--text-dim);
+  color: var(--bone);
   font-family: var(--font-sans);
-  font-size: clamp(15px, 1.6vw, 17px);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+  font-size: clamp(17px, 2vw, 22px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  text-wrap: balance;
 }
 
 .focus-serial {
@@ -460,6 +462,30 @@ a {
 }
 
 /* ------------------------------------------------------------- the step */
+
+/* The hero in its amber frame: the physical action behind machined glass.
+   The panel is the only amber-bordered surface on the card, and the step
+   inside is the only amber body copy — signal discipline holds. Pending
+   (NO STEP YET) never sits in this panel, so amber never marks a gap. */
+.step-panel {
+  position: relative;
+  margin: 0 0 28px;
+  padding: clamp(16px, 2.4vw, 22px) clamp(16px, 2.6vw, 24px);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background:
+    linear-gradient(180deg, rgba(245, 158, 11, 0.07), rgba(245, 158, 11, 0.015)),
+    var(--carbon);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 158, 11, 0.12),
+    0 0 32px rgba(245, 158, 11, 0.06);
+  animation: rise 520ms var(--ease-out) 120ms both;
+}
+
+.step-panel .focus-step {
+  margin: 0;
+  color: var(--amber);
+  animation: none;
+}
 
 /* The hero: the physical action, not the task title. The single amber tick
    above it is the only amber on this screen. */
@@ -674,12 +700,18 @@ a {
 /* -------------------------------------------------------------- reserve */
 
 /* One primitive on every surface: stack glyph + count + "in reserve · hidden".
-   The reserve never shows a title, a name, or a preview — count only. */
+   The reserve never shows a title, a name, or a preview — count only.
+   Rendered as a stasis panel with a segmented meter: each lit bar is one
+   parked task, up to the meter's width. The number stays exact; the bars
+   are atmosphere with a ceiling. */
 .reserve-line {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
   margin: 0 0 28px;
+  padding: 11px 14px;
+  border: 1px solid var(--hairline);
+  background: rgba(249, 248, 246, 0.015);
   color: var(--text-faint);
   animation: rise 520ms var(--ease-out) 240ms both;
 }
@@ -729,6 +761,30 @@ a {
 
 .reserve-line.is-clear .reserve-count {
   color: var(--emerald);
+}
+
+/* Stasis meter: lit bars for parked tasks, ghost bars for the rest. */
+.reserve-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.reserve-meter i {
+  width: 4px;
+  height: 12px;
+  flex: none;
+  background: rgba(249, 248, 246, 0.12);
+}
+
+.reserve-meter i.is-on {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
+}
+
+.reserve-line.is-clear .reserve-meter i {
+  background: rgba(16, 185, 129, 0.25);
 }
 
 /* -------------------------------------------------------------- actions */
@@ -828,11 +884,12 @@ a {
   cursor: progress;
 }
 
-/* DONE — bone fill, Erebus text. A physical key, not a green SaaS button. */
+/* DONE — emerald-tinted outline on carbon. A physical key with a live
+   edge, not a green SaaS button and not a bone slab. */
 .btn-done {
-  border-color: var(--bone);
-  background: var(--bone);
-  color: var(--erebus);
+  border-color: rgba(16, 185, 129, 0.42);
+  background: rgba(16, 185, 129, 0.07);
+  color: var(--bone);
   font-weight: 600;
 }
 
@@ -841,42 +898,48 @@ a {
 }
 
 .btn-done:hover:not(:disabled) {
-  border-color: #ffffff;
-  background: #ffffff;
-  color: var(--erebus);
+  border-color: rgba(16, 185, 129, 0.75);
+  background: rgba(16, 185, 129, 0.12);
+  color: #ffffff;
 }
 
 .btn-done:active:not(:disabled),
 .btn-done[data-pending="true"] {
-  border-color: var(--bone);
-  background: rgba(249, 248, 246, 0.86);
-  color: var(--erebus);
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--bone);
 }
 
 .btn-done kbd {
-  border-color: rgba(12, 13, 14, 0.28);
+  border-color: rgba(16, 185, 129, 0.35);
   background: transparent;
-  color: rgba(12, 13, 14, 0.62);
+  color: rgba(249, 248, 246, 0.62);
 }
 
-/* SKIP — outline only. Never amber, never emerald. */
+/* SKIP — amber-tinted outline, dimmer voice. Never solid, never emerald. */
 .btn-skip {
-  border-color: var(--hairline-strong);
+  border-color: rgba(245, 158, 11, 0.28);
   background: transparent;
   color: var(--text-dim);
 }
 
 .btn-skip:hover:not(:disabled) {
-  border-color: var(--hairline-bright);
-  background: rgba(249, 248, 246, 0.035);
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.05);
   color: var(--bone);
 }
 
 .btn-skip:active:not(:disabled),
 .btn-skip[data-pending="true"] {
-  border-color: var(--bone);
-  background: rgba(249, 248, 246, 0.08);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.08);
   color: var(--bone);
+}
+
+.btn-skip kbd {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: transparent;
+  color: var(--text-faint);
 }
 
 .btn-skip:hover:not(:disabled) svg {
@@ -1480,6 +1543,10 @@ a {
 
   .focus-card {
     padding: 26px 22px 24px;
+  }
+
+  .step-panel {
+    padding: 14px 14px;
   }
 
   .card-foot,

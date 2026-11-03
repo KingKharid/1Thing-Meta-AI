@@ -6,6 +6,8 @@ import { apiConfig, getFocus } from "./focus-lib";
 
 function ReserveLine({ count }: { count: number }) {
   const clear = count === 0;
+  // The meter caps at eight bars; the number beside it stays exact.
+  const filled = Math.min(count, 8);
   return (
     <div
       className={`reserve-line${clear ? " is-clear" : ""}`}
@@ -16,6 +18,13 @@ function ReserveLine({ count }: { count: number }) {
       <span className="reserve-text mono">
         {clear ? "RESERVE CLEAR" : "IN RESERVE · HIDDEN"}
       </span>
+      {!clear && (
+        <span className="reserve-meter" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <i key={i} className={i < filled ? "is-on" : undefined} />
+          ))}
+        </span>
+      )}
     </div>
   );
 }
@@ -66,11 +75,24 @@ export default async function FocusPage({
             <i className="status-dot" aria-hidden="true" />
             ENGINE // {statusLabel}
           </span>
+          {/* Six of seven invariants live on this surface: phone OTP is
+              the documented seam, so the seventh is not claimed armed. */}
+          <span className="status-chip is-live">
+            <i className="status-dot" aria-hidden="true" />
+            INVARIANTS // 6 ARMED
+          </span>
         </div>
       </header>
 
       <main className="focus-wrap">
         <div className="focus-column">
+          <div className="focus-kicker mono" aria-hidden="true">
+            <span className="kicker-left">
+              <span className="kicker-mark" />
+              ACTIVE FOCUS
+            </span>
+            <span className="kicker-right">SURFACE // WEB SANCTUARY</span>
+          </div>
           {focus.mode === "error" ? (
             <section className="focus-card focus-card-error" aria-label="Engine unreachable">
               <div className="focus-head">
@@ -135,15 +157,17 @@ export default async function FocusPage({
               </div>
 
               {task.firstMicroStep ? (
-                <h1
-                  className={
-                    task.firstMicroStep.length > 48
-                      ? "focus-step is-long"
-                      : "focus-step"
-                  }
-                >
-                  {task.firstMicroStep}
-                </h1>
+                <div className="step-panel">
+                  <h1
+                    className={
+                      task.firstMicroStep.length > 48
+                        ? "focus-step is-long"
+                        : "focus-step"
+                    }
+                  >
+                    {task.firstMicroStep}
+                  </h1>
+                </div>
               ) : (
                 <>
                   <h1 className="focus-step is-pending">NO STEP YET</h1>
@@ -161,9 +185,13 @@ export default async function FocusPage({
               )}
 
               <div className="focus-meta">
-                <span className="pill">
+                <span className="pill pill-amber">
                   <ClockIcon />
                   {task.estimatedMinutes} MIN
+                </span>
+                <span className="pill pill-ghost">
+                  <span className="pill-dot" aria-hidden="true" />
+                  ONE STEP ONLY
                 </span>
               </div>
 
