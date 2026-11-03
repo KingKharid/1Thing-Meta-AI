@@ -89,7 +89,11 @@ export default async function FocusPage({
           <div className="focus-kicker mono" aria-hidden="true">
             <span className="kicker-left">
               <span className="kicker-mark" />
-              ACTIVE FOCUS
+              {focus.mode === "error"
+                ? "OFFLINE"
+                : task === null
+                  ? "STANDBY"
+                  : "ACTIVE FOCUS"}
             </span>
             <span className="kicker-right">SURFACE // WEB SANCTUARY</span>
           </div>

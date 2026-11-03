@@ -1969,11 +1969,51 @@ button.ingest-cta:disabled {
   background:
     linear-gradient(180deg, rgba(249, 248, 246, 0.02), transparent 60%),
     var(--carbon);
-  transition: border-color var(--dur) var(--ease-out);
+  transition:
+    border-color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
 }
 
 .demo-door:hover {
   border-color: var(--hairline-bright);
+  transform: translateY(-2px);
+}
+
+.demo-door-index {
+  transition: color var(--dur) var(--ease-out);
+}
+
+.demo-door:hover .demo-door-index {
+  color: var(--amber);
+}
+
+/* The dump preview reads as a captured transmission: inset plate with
+   amber corner registration marks. */
+.demo-dump-preview {
+  position: relative;
+}
+
+.demo-dump-preview::before,
+.demo-dump-preview::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.demo-dump-preview::before {
+  left: -1px;
+  border-top: 1px solid var(--amber);
+  border-left: 1px solid var(--amber);
+}
+
+.demo-dump-preview::after {
+  right: -1px;
+  border-top: 1px solid var(--amber);
+  border-right: 1px solid var(--amber);
 }
 
 /* Door index: judges pick a door in order, and the numbers read as
@@ -2005,6 +2045,29 @@ button.ingest-cta:disabled {
 }
 
 .demo-door .ingest-cta:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber-warm);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+/* Key CTAs on the focus card (standby WhatsApp dump, error retry):
+   bordered mono keys with amber hover edges, same as the demo doors. */
+.focus-card .ingest-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(249, 248, 246, 0.02);
+  color: var(--bone);
+  font-size: 10px;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
+}
+
+.focus-card .ingest-cta:hover {
   border-color: var(--amber);
   color: var(--amber-warm);
   background: rgba(245, 158, 11, 0.06);
