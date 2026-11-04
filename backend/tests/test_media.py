@@ -34,6 +34,19 @@ def wa_creds(monkeypatch):
     monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "pid")
 
 
+@pytest.fixture()
+def meta_key(monkeypatch):
+    """The Responses path refuses to call without a configured key.
+
+    The key is read once at import time, so without this fixture the
+    tests below only pass when a developer ``.env`` happens to exist —
+    exactly the kind of local-only green that CI exists to catch.
+    """
+    from app import meta_client
+
+    monkeypatch.setattr(meta_client, "META_API_KEY", "test-key")
+
+
 def test_download_media_returns_bytes_and_mime(monkeypatch, wa_creds):
     calls = []
 
@@ -155,7 +168,7 @@ def test_ingest_rejects_unsupported_and_failures(monkeypatch):
         ingest_whatsapp_media("m5", "audio")
 
 
-def test_transcribe_and_segment_bytes_helpers(monkeypatch):
+def test_transcribe_and_segment_bytes_helpers(monkeypatch, meta_key):
     from app import meta_client
 
     monkeypatch.setattr(meta_client.time, "sleep", lambda *_: None)
@@ -205,7 +218,7 @@ def test_transcribe_and_segment_bytes_helpers(monkeypatch):
         meta_client.segment_image_bytes(b"\xff\xd8")
 
 
-def test_media_retries_transient_failures_then_succeeds(monkeypatch):
+def test_media_retries_transient_failures_then_succeeds(monkeypatch, meta_key):
     from app import meta_client
 
     monkeypatch.setattr(meta_client.time, "sleep", lambda *_: None)
@@ -233,7 +246,7 @@ def test_media_retries_transient_failures_then_succeeds(monkeypatch):
     assert len(attempts) == 3
 
 
-def test_media_does_not_retry_a_bad_request(monkeypatch):
+def test_media_does_not_retry_a_bad_request(monkeypatch, meta_key):
     from app import meta_client
 
     attempts = []
