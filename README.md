@@ -3,7 +3,7 @@
 > **Meta Global AI Developer Hackathon — Indie Developer track.**
 > Repo: [KingKharid/1Thing-Meta-AI](https://github.com/KingKharid/1Thing-Meta-AI)
 > **Demo: <https://kingkharid--1thing-web-web.us-east.modal.run/demo>**
-> Video: `<!-- TODO: replace with the submission video -->`
+> Video: <https://youtu.be/HNtWO-DlvaU>
 
 Every productivity app shows you the mountain. 1Thing refuses.
 
