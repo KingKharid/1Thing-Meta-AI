@@ -29,6 +29,7 @@ from app.services.ratelimit import rate_limit
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
 from app.services.triage import (
+    dedupe_against_existing,
     extract_or_fallback,
     is_greeting,
     log_model_attempts,
@@ -271,6 +272,23 @@ def create_task(
                 status_code=503,
                 detail="The engine could not read this dump. Nothing was filed.",
             )
+        # Cross-message dedup, same as the WhatsApp pipeline: titles
+        # already active or queued are recognized, not re-filed.
+        live_titles = [
+            row_title
+            for (row_title,) in db.query(Task.title)
+            .filter(
+                Task.user_id == user_id,
+                Task.status.in_([TaskStatus.QUEUED, TaskStatus.IN_PROGRESS]),
+            )
+            .all()
+        ]
+        entries = dedupe_against_existing(entries, live_titles)
+        if not entries:
+            raise HTTPException(
+                status_code=400,
+                detail="Those are already on your surface. Nothing new filed.",
+            )
         if typed_step:
             entries[0]["first_micro_step"] = typed_step
             step_source = "user"
@@ -401,6 +419,24 @@ def create_task_from_media(
     step_source: Literal["user", "engine", "heuristic", "none"] = (
         "heuristic" if used_fallback else "engine"
     )
+
+    # Same cross-message dedup as the text path: a re-sent photo or voice
+    # note must not twin what is already waiting.
+    live_titles = [
+        row_title
+        for (row_title,) in db.query(Task.title)
+        .filter(
+            Task.user_id == user_id,
+            Task.status.in_([TaskStatus.QUEUED, TaskStatus.IN_PROGRESS]),
+        )
+        .all()
+    ]
+    entries = dedupe_against_existing(entries, live_titles)
+    if not entries:
+        raise HTTPException(
+            status_code=400,
+            detail="Those are already on your surface. Nothing new filed.",
+        )
 
     tasks, active, activated = _persist_filed(db, user_id, entries, attempts)
     return TaskCreateOut(

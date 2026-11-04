@@ -17,7 +17,12 @@ from app.services import whatsapp_templates
 from app.services.media import MediaError, ingest_whatsapp_media
 from app.services.rhythm import suggest_context
 from app.services.state import SingleActiveTaskGuard
-from app.services.triage import extract_or_fallback, is_greeting, log_model_attempts
+from app.services.triage import (
+    dedupe_against_existing,
+    extract_or_fallback,
+    is_greeting,
+    log_model_attempts,
+)
 from app.services.whatsapp_client import send_focus_message, send_text
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "one_thing_hackathon_verify_token_2026")
@@ -291,6 +296,36 @@ def handle_pipeline(raw_text: str, engine: str | None = None, user_id: str = "un
     # exactly one physical next step.
     db = SessionLocal()
     try:
+        # Cross-message dedup: a re-sent task already active or queued is
+        # recognized, not re-filed — otherwise twins take turns on the
+        # surface and DONE/SKIP look like they repeat the same task.
+        live_titles = [
+            title
+            for (title,) in db.query(Task.title)
+            .filter(
+                Task.user_id == user_pk,
+                Task.status.in_([TaskStatus.QUEUED, TaskStatus.IN_PROGRESS]),
+            )
+            .all()
+        ]
+        fresh = dedupe_against_existing(tasks, live_titles)
+        if not fresh:
+            active = invariant_guard.get_active_task(db, user_pk)
+            reserve = _reserve_count(db, user_pk)
+            log_model_attempts(db, user_pk, attempts)
+            db.commit()
+            if first_contact:
+                _deliver(user_id, whatsapp_templates.onboarding_reply())
+            if active is None:
+                _deliver(user_id, whatsapp_templates.idle_reply(reserve))
+            else:
+                _deliver_focus(
+                    user_id,
+                    whatsapp_templates.current_reply(_task_brief(active), reserve),
+                    active.id,
+                )
+            return {"duplicate": True, "selected_task": None, "queued_backlog_count": reserve}
+        tasks = fresh
         rows: list[Task] = []
         for entry in tasks:
             row = Task(

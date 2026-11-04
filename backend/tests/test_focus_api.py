@@ -760,3 +760,56 @@ def test_media_rejects_non_media_and_empty_reads(client: TestClient, monkeypatch
     monkeypatch.setattr(media_service, 'segment_image_bytes', lambda *a, **k: 'hello there')
     res = client.post('/api/v1/tasks/media', headers=HEADERS, files={'file': ('hi.jpg', b'fakebytes', 'image/jpeg')})
     assert res.status_code == 400
+
+
+def test_dump_does_not_refile_live_tasks(client: TestClient, monkeypatch):
+    import app.models as models_mod
+    db = client.testing_session()
+    try:
+        user = models_mod.get_or_create_user(db, phone_number=PHONE)
+        db.add(make_task(user.id, 'Dentist call', status=TaskStatus.IN_PROGRESS))
+        db.add(make_task(user.id, 'Venue deposit', status=TaskStatus.QUEUED))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        focus_router, 'extract_or_fallback',
+        lambda *a, **k: ([
+            {'title': 'Dentist call', 'first_micro_step': 's', 'estimated_minutes': 5, 'energy_required': 'low'},
+            {'title': 'New thing', 'first_micro_step': 't', 'estimated_minutes': 5, 'energy_required': 'low'},
+        ], False),
+    )
+
+    res = client.post('/api/v1/tasks', headers=HEADERS, json={'dump': 'dentist and something new'})
+    assert res.status_code == 201
+    body = res.json()
+    assert body['filed_count'] == 1
+    assert body['task']['title'] == 'New thing'
+
+    db = client.testing_session()
+    try:
+        titles = sorted(t.title for t in db.query(Task).all())
+        assert titles.count('Dentist call') == 1
+    finally:
+        db.close()
+
+
+def test_dump_of_only_duplicates_is_refused_plainly(client: TestClient, monkeypatch):
+    import app.models as models_mod
+    db = client.testing_session()
+    try:
+        user = models_mod.get_or_create_user(db, phone_number=PHONE)
+        db.add(make_task(user.id, 'Dentist call', status=TaskStatus.IN_PROGRESS))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        focus_router, 'extract_or_fallback',
+        lambda *a, **k: ([{'title': 'Dentist call', 'first_micro_step': 's', 'estimated_minutes': 5, 'energy_required': 'low'}], False),
+    )
+
+    res = client.post('/api/v1/tasks', headers=HEADERS, json={'dump': 'dentist again'})
+    assert res.status_code == 400
+    assert 'already on your surface' in res.json()['detail']

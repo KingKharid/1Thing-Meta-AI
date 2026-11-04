@@ -389,3 +389,22 @@ def test_is_greeting_matches_whole_greetings_only():
         '   ',
     ]:
         assert is_greeting(text) is False, text
+
+
+def test_dedupe_against_existing_matches_case_and_whitespace():
+    from app.services.triage import dedupe_against_existing
+
+    entries = [
+        {'title': '  Dentist CALL '},
+        {'title': 'New thing'},
+        {'title': 'VENUE DEPOSIT'},
+    ]
+    assert dedupe_against_existing(entries, ['dentist call']) == [
+        {'title': 'New thing'},
+        {'title': 'VENUE DEPOSIT'},
+    ]
+    assert dedupe_against_existing(entries, []) == entries
+    assert dedupe_against_existing(entries, ['  VENUE deposit ']) == [
+        {'title': '  Dentist CALL '},
+        {'title': 'New thing'},
+    ]

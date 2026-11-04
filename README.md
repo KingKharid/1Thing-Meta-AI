@@ -73,6 +73,8 @@ available minutes, and their energy:
 
 - Extraction is ordered, de-duplicated, and capped at 20 tasks per dump.
 - Every task is persisted; only the head is activated.
+- A re-sent task that is already active or queued is recognized, not
+  re-filed — the reply shows the current surface instead.
 - A dump **never yanks** a task you are already mid-step on. The new head waits
   in reserve behind it (Invariant 1).
 - If both providers fail, a verbatim heuristic files your own words rather than

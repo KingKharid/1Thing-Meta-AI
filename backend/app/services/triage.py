@@ -296,6 +296,25 @@ def is_greeting(raw_dump: str) -> bool:
     return bool(text) and text in _GREETINGS
 
 
+def dedupe_against_existing(
+    entries: list[dict], existing_titles: list[str] | set[str] | tuple
+) -> list[dict]:
+    """Drop entries whose title is already live for this user.
+
+    Dedup inside one extraction only catches twins from a single dump.
+    Across messages the same task gets re-sent ("remind me again about
+    the dentist", a second voice note covering the same ground) and each
+    twin would otherwise take its own turn on the surface — the repeat
+    loop from the WhatsApp logs. Completed or archived work is *not*
+    matched, so finishing something and later re-adding it still files
+    fresh.
+    """
+    seen = {str(t or "").strip().casefold() for t in existing_titles or ()}
+    return [
+        e for e in entries if str(e.get("title") or "").strip().casefold() not in seen
+    ]
+
+
 def _chunks(raw_dump: str) -> list[str]:
     text = (raw_dump or "").strip()
     if not text:

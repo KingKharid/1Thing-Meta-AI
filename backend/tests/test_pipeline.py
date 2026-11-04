@@ -193,3 +193,54 @@ def test_greeting_guard_keeps_task_bearing_text(pipeline, monkeypatch):
     monkeypatch.setattr(main, "extract_or_fallback", fake_extract)
     main.handle_pipeline("hi, remind me to pay rent tomorrow", user_id=PHONE)
     assert seen == ["called"]
+
+
+def test_pipeline_does_not_refile_live_tasks(pipeline, monkeypatch):
+    from app.models import TaskStatus
+    db = pipeline['factory']()
+    try:
+        user = main.get_or_create_user(db, phone_number=PHONE)
+        db.add(Task(user_id=user.id, title='Dentist call', first_micro_step='s', estimated_minutes=5, energy_required='low', status=TaskStatus.IN_PROGRESS))
+        db.add(Task(user_id=user.id, title='Venue deposit', first_micro_step='s', estimated_minutes=5, energy_required='low', status=TaskStatus.QUEUED))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(
+        main, 'extract_or_fallback',
+        lambda *a, **k: ([
+            {'title': 'dentist CALL', 'first_micro_step': 's', 'estimated_minutes': 5, 'energy_required': 'low'},
+            {'title': 'New thing', 'first_micro_step': 't', 'estimated_minutes': 5, 'energy_required': 'low'},
+        ], False),
+    )
+    result = main.handle_pipeline('dentist again plus something new', user_id=PHONE)
+    assert result['filed_count'] == 1
+    assert result['selected_task']['title'] == 'New thing'
+    db = pipeline['factory']()
+    try:
+        titles = [t.title for t in db.query(Task).order_by(Task.id).all()]
+        assert titles.count('Dentist call') == 1
+    finally:
+        db.close()
+
+
+def test_pipeline_all_duplicates_answers_from_state(pipeline, monkeypatch):
+    from app.models import TaskStatus
+    db = pipeline['factory']()
+    try:
+        user = main.get_or_create_user(db, phone_number=PHONE)
+        db.add(Task(user_id=user.id, title='Dentist call', first_micro_step='Pick up the phone', estimated_minutes=5, energy_required='low', status=TaskStatus.IN_PROGRESS))
+        db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setattr(main, 'extract_or_fallback', lambda *a, **k: ([{'title': 'Dentist call', 'first_micro_step': 's', 'estimated_minutes': 5, 'energy_required': 'low'}], False))
+    result = main.handle_pipeline('dentist again', user_id=PHONE)
+    assert result['duplicate'] is True
+    db = pipeline['factory']()
+    try:
+        assert db.query(Task).count() == 1
+    finally:
+        db.close()
+    bodies = [body for _, body, _ in pipeline['sent']]
+    assert any('Dentist call' in body or 'YOUR ONE THING' in body for body in bodies)
